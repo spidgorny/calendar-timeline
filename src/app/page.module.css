@@ -3,7 +3,7 @@
   flex: 1;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 2rem;
+  padding: 2rem 2rem 6rem;
   font-family: var(--font-geist-sans);
   background:
     radial-gradient(circle at top, rgba(99, 102, 241, 0.12), transparent 32%),
@@ -47,7 +47,7 @@
 
 @media (max-width: 900px) {
   .page {
-    padding: 1rem;
+    padding: 1rem 1rem 5rem;
   }
 
   .hero {

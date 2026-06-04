@@ -6,10 +6,10 @@ import styles from "./auth-bar.module.css";
 
 type AuthBarProps = {
   signedIn: boolean;
-  mode?: "connect" | "reconnect" | "disconnect";
+  mode?: "connect" | "reconnect" | "logout";
 };
 
-export function AuthBar({ signedIn, mode = signedIn ? "disconnect" : "connect" }: AuthBarProps) {
+export function AuthBar({ signedIn, mode = signedIn ? "logout" : "connect" }: AuthBarProps) {
   if (mode === "connect") {
     return (
       <Link className={styles.button} href="/api/auth/signin/google?callbackUrl=/">
@@ -35,7 +35,7 @@ export function AuthBar({ signedIn, mode = signedIn ? "disconnect" : "connect" }
       type="button"
       onClick={() => signOut({ callbackUrl: "/" })}
     >
-      Disconnect
+      Logout
     </button>
   );
 }

@@ -38,7 +38,7 @@ export const authOptions: NextAuthOptions = {
           access_type: "offline",
           prompt: "consent",
           scope:
-            "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+            "openid email profile https://www.googleapis.com/auth/calendar.events",
         },
       },
     }),
@@ -49,10 +49,13 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account }) {
       if (account) {
+        const scopes = account.scope?.split(" ").filter(Boolean);
+
         return {
           ...token,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
+          scopes,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
             : Date.now() + Number(account.expires_in ?? 0) * 1000,
@@ -91,6 +94,7 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken;
+      session.scopes = token.scopes;
       session.error = token.error;
       return session;
     },

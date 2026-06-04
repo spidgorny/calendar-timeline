@@ -1,10 +1,8 @@
 import { auth } from "@/auth";
 import { AuthBar } from "@/components/auth-bar";
-import { CalendarTimeline } from "@/components/calendar-timeline";
-import {
-  buildTimelineModel,
-  fetchCalendarEvents,
-} from "@/lib/calendar";
+import { CalendarBoard } from "@/components/calendar-board";
+import { EventFab } from "@/components/event-fab";
+import { fetchCalendarEvents, type GoogleCalendarApiEvent } from "@/lib/calendar";
 import styles from "./page.module.css";
 
 function needsReconnect(error: string | null) {
@@ -16,9 +14,21 @@ function needsReconnect(error: string | null) {
   );
 }
 
+function canCreateEvents(scopes: string[] | undefined) {
+  return Boolean(
+    scopes?.some(
+      (scope) =>
+        scope === "https://www.googleapis.com/auth/calendar.events" ||
+        scope === "https://www.googleapis.com/auth/calendar",
+    ),
+  );
+}
+
 export default async function Home() {
   const session = await auth();
   const accessToken = session?.accessToken;
+  const canAddEvents = canCreateEvents(session?.scopes);
+  const reconnectHref = "/api/auth/signin/google?callbackUrl=/&prompt=consent";
 
   if (!accessToken) {
     return (
@@ -36,19 +46,18 @@ export default async function Home() {
     );
   }
 
-  let timeline: ReturnType<typeof buildTimelineModel> | null = null;
   let loadError: string | null = null;
+  let initialEvents: GoogleCalendarApiEvent[] = [];
 
   try {
-    const events = await fetchCalendarEvents(accessToken);
-    timeline = buildTimelineModel(events);
+    initialEvents = await fetchCalendarEvents(accessToken);
   } catch (error) {
     loadError = error instanceof Error ? error.message : "Unknown calendar error.";
   }
 
   const reconnectRequired = needsReconnect(loadError);
 
-  if (loadError || !timeline) {
+  if (loadError) {
     return (
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -61,8 +70,9 @@ export default async function Home() {
                 : loadError ?? "Unable to build the calendar timeline."}
             </p>
           </div>
-          <AuthBar signedIn mode={reconnectRequired ? "reconnect" : "disconnect"} />
+          <AuthBar signedIn mode={reconnectRequired ? "reconnect" : "logout"} />
         </section>
+        <EventFab canCreateEvents={canAddEvents} reconnectHref={reconnectHref} />
       </main>
     );
   }
@@ -81,7 +91,8 @@ export default async function Home() {
         <AuthBar signedIn />
       </section>
 
-      <CalendarTimeline days={timeline.days} months={timeline.months} events={timeline.events} />
+      <CalendarBoard initialEvents={initialEvents} />
+      <EventFab canCreateEvents={canAddEvents} reconnectHref={reconnectHref} />
     </main>
   );
 }
