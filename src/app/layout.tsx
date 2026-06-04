@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Google Timeline",
   description: "Read Google Calendar events and render multi-day spans as horizontal lines.",
+  verification: {
+    google: "4gyPDnNanwnkRhPjWfuJcOeuYxhjNPtgAOE1ZHRDRnM",
+  },
 };
 
 export default function RootLayout({
