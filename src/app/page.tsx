@@ -68,6 +68,50 @@ export default async function Home() {
   const canAddEvents = demoMode ? true : canCreateEvents(session?.scopes);
   const reconnectHref = "/api/auth/signin/google?callbackUrl=/&prompt=consent";
 
+  const footer = (
+    <footer className={styles.pageFooter}>
+      <div className={styles.footerBrand}>
+        <div className={styles.footerBrandRow}>
+          <Image
+            className={styles.footerIcon}
+            src="/icon.svg"
+            alt=""
+            aria-hidden="true"
+            width={28}
+            height={28}
+          />
+          <div className={styles.footerCopy}>
+            <p className={styles.footerTitle}>Google Timeline</p>
+            <p className={styles.footerTag}>Calendar visualization for long spans</p>
+          </div>
+        </div>
+        <p className={styles.footerMeta}>
+          Read Google Calendar events as a clean horizontal timeline, hide noise,
+          and create new events without leaving the page.
+        </p>
+      </div>
+      <nav className={styles.footerNav} aria-label="Footer">
+        <p className={styles.footerNavLabel}>Resources</p>
+        <div className={styles.footerLinks}>
+          <a
+            className={styles.footerLink}
+            href="https://github.com/spidgorny/calendar-timeline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
+          <Link className={styles.footerLink} href="/privacy">
+            Privacy
+          </Link>
+          <Link className={styles.footerLink} href="/terms">
+            Terms
+          </Link>
+        </div>
+      </nav>
+    </footer>
+  );
+
   if (!accessToken && !demoMode) {
     return (
       <main className={styles.page}>
@@ -119,33 +163,9 @@ export default async function Home() {
                 </li>
               ))}
             </ul>
-
-            <footer className={styles.landingFooter}>
-              <div className={styles.footerCopy}>
-                <p className={styles.footerTitle}>Google Timeline</p>
-                <p className={styles.footerMeta}>
-                  A timeline view for Google Calendar with demo mode and quick event creation.
-                </p>
-              </div>
-              <div className={styles.footerLinks}>
-                <a
-                  className={styles.footerLink}
-                  href="https://github.com/spidgorny/calendar-timeline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  GitHub
-                </a>
-                <Link className={styles.footerLink} href="/privacy">
-                  Privacy
-                </Link>
-                <Link className={styles.footerLink} href="/terms">
-                  Terms
-                </Link>
-              </div>
-            </footer>
           </div>
         </section>
+        {footer}
       </main>
     );
   }
@@ -180,6 +200,7 @@ export default async function Home() {
           <AuthBar signedIn mode={reconnectRequired ? "reconnect" : "logout"} />
         </section>
         <EventFab canCreateEvents={canAddEvents} reconnectHref={reconnectHref} />
+        {footer}
       </main>
     );
   }
@@ -198,6 +219,7 @@ export default async function Home() {
 
       <CalendarBoard initialEvents={initialEvents} />
       <EventFab canCreateEvents={canAddEvents} reconnectHref={reconnectHref} />
+      {footer}
     </main>
   );
 }
