@@ -3,6 +3,7 @@ import { AuthBar } from "@/components/auth-bar";
 import { CalendarBoard } from "@/components/calendar-board";
 import { EventFab } from "@/components/event-fab";
 import Image from "next/image";
+import Link from "next/link";
 import {
   fetchCalendarEvents,
   isDemoMode,
@@ -29,14 +30,14 @@ const landingFeatures = [
     title: "Hidden swimlane",
     description:
       "Hide noisy events and move them into a separate lane without losing their position.",
-    screenshot: "/feature-hidden.svg",
+    screenshot: "/img_2.png",
     alt: "Hidden swimlane screenshot",
   },
   {
     title: "Quick event creation",
     description:
       "Add all-day or timed events from the floating composer and sync them back to Google Calendar.",
-    screenshot: "/feature-create.svg",
+    screenshot: "/img_1.png",
     alt: "Event creation screenshot",
   },
 ] as const;
@@ -85,6 +86,7 @@ export default async function Home() {
                 src="/img.png"
                 width={1024}
                 height={683}
+                loading="eager"
                 sizes="(max-width: 960px) 100vw, 960px"
                 alt="Calendar timeline screenshot"
               />
@@ -117,6 +119,31 @@ export default async function Home() {
                 </li>
               ))}
             </ul>
+
+            <footer className={styles.landingFooter}>
+              <div className={styles.footerCopy}>
+                <p className={styles.footerTitle}>Google Timeline</p>
+                <p className={styles.footerMeta}>
+                  A timeline view for Google Calendar with demo mode and quick event creation.
+                </p>
+              </div>
+              <div className={styles.footerLinks}>
+                <a
+                  className={styles.footerLink}
+                  href="https://github.com/spidgorny/calendar-timeline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GitHub
+                </a>
+                <Link className={styles.footerLink} href="/privacy">
+                  Privacy
+                </Link>
+                <Link className={styles.footerLink} href="/terms">
+                  Terms
+                </Link>
+              </div>
+            </footer>
           </div>
         </section>
       </main>

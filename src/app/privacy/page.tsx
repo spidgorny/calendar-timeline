@@ -49,7 +49,6 @@ export default function PrivacyPolicyPage() {
               <li>Authenticate you with Google.</li>
               <li>Load calendar events and display them in the timeline view.</li>
               <li>Create events in Google Calendar when you submit the event form.</li>
-              <li>Support demo mode when the app is configured to use sample data.</li>
             </ul>
           </section>
 
@@ -82,16 +81,6 @@ export default function PrivacyPolicyPage() {
               <li>You can revoke Google access from your Google Account settings.</li>
               <li>You can delete or edit events directly in Google Calendar.</li>
             </ul>
-          </section>
-
-          <section>
-            <h2>Demo mode</h2>
-            <p>
-              When demo mode is enabled, the app uses locally generated sample
-              events instead of reading your Google Calendar. In that mode, the
-              app does not need your Google Calendar data to demonstrate the
-              timeline UI.
-            </p>
           </section>
 
           <section>

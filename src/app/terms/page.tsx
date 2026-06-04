@@ -43,16 +43,6 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2>Demo mode</h2>
-            <p>
-              When demo mode is enabled, the app may show locally generated sample
-              data instead of live Google Calendar data. Demo mode is intended for
-              previewing the product experience and may not reflect the exact
-              behavior of a live Google Calendar account.
-            </p>
-          </section>
-
-          <section>
             <h2>Acceptable use</h2>
             <ul>
               <li>Do not interfere with or attempt to disrupt the service.</li>
