@@ -23,22 +23,32 @@ export type CalendarEvent = {
   rangeLabel: string;
   startIndex: number;
   endIndex: number;
+  startedBeforeWindow: boolean;
+};
+
+export type MonthGroup = {
+  label: string;
+  startIndex: number;
+  endIndex: number;
 };
 
 export type TimelineModel = {
   days: Date[];
+  months: MonthGroup[];
   events: CalendarEvent[];
 };
 
 const EVENT_COLORS = [
-  "#6366f1",
-  "#14b8a6",
-  "#f97316",
-  "#ec4899",
-  "#22c55e",
-  "#8b5cf6",
-  "#0ea5e9",
-  "#eab308",
+  "#4f46e5",
+  "#0f766e",
+  "#ea580c",
+  "#be185d",
+  "#15803d",
+  "#7c3aed",
+  "#0284c7",
+  "#a16207",
+  "#db2777",
+  "#2563eb",
 ];
 
 function startOfDay(date: Date) {
@@ -50,6 +60,12 @@ function startOfDay(date: Date) {
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
   return next;
 }
 
@@ -75,6 +91,13 @@ function formatDayHeader(date: Date) {
     weekday: "short",
     month: "short",
     day: "numeric",
+  }).format(date);
+}
+
+function formatMonthHeader(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
   }).format(date);
 }
 
@@ -106,9 +129,9 @@ function formatRangeLabel(start: Date, end: Date, allDay: boolean) {
 
 export async function fetchCalendarEvents(accessToken: string) {
   const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
-  const now = new Date();
-  const timeMin = addDays(startOfDay(now), -7).toISOString();
-  const timeMax = addDays(startOfDay(now), 30).toISOString();
+  const now = startOfDay(new Date());
+  const timeMin = addMonths(now, -1).toISOString();
+  const timeMax = addMonths(now, 6).toISOString();
 
   const url = new URL(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
@@ -139,6 +162,7 @@ export async function fetchCalendarEvents(accessToken: string) {
 }
 
 export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineModel {
+  const now = startOfDay(new Date());
   const normalized = events
     .filter((event) => event.start && event.end)
     .map((event, index) => {
@@ -161,20 +185,46 @@ export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineMo
         rangeLabel: formatRangeLabel(start, end, allDay),
       };
     })
+    .filter((event) => {
+      const spanStart = startOfDay(event.start);
+      const spanEnd = startOfDay(new Date(event.end.getTime() - 1));
+      const spanDays =
+        Math.floor((spanEnd.getTime() - spanStart.getTime()) / 86_400_000) + 1;
+
+      return spanDays > 1;
+    })
+    .filter((event) => event.end > now)
     .sort((left, right) => left.start.getTime() - right.start.getTime());
 
-  const now = startOfDay(new Date());
-  const earliest = normalized[0]?.start ? startOfDay(normalized[0].start) : now;
-  const latest = normalized.at(-1)?.end
-    ? startOfDay(new Date(normalized.at(-1)!.end.getTime() - 1))
-    : addDays(now, 6);
+  const earliest = now;
 
-  const start = addDays(earliest < now ? earliest : now, -1);
-  const end = addDays(latest > now ? latest : now, 1);
+  const start = earliest;
+  const end = addMonths(now, 6);
 
   const days: Date[] = [];
   for (let current = start; current <= end; current = addDays(current, 1)) {
     days.push(current);
+  }
+
+  const months: MonthGroup[] = [];
+  for (let index = 0; index < days.length; ) {
+    const current = days[index];
+    const monthKey = current.getFullYear() * 12 + current.getMonth();
+    let endIndex = index;
+
+    while (endIndex + 1 < days.length) {
+      const next = days[endIndex + 1];
+      const nextMonthKey = next.getFullYear() * 12 + next.getMonth();
+      if (nextMonthKey !== monthKey) break;
+      endIndex += 1;
+    }
+
+    months.push({
+      label: formatMonthHeader(current),
+      startIndex: index,
+      endIndex,
+    });
+    index = endIndex + 1;
   }
 
   const eventsWithColumns = normalized.map((event) => {
@@ -193,11 +243,13 @@ export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineMo
       ...event,
       startIndex,
       endIndex,
+      startedBeforeWindow: event.start < start,
     };
   });
 
   return {
     days,
+    months,
     events: eventsWithColumns,
   };
 }
