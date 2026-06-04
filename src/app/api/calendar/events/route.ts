@@ -1,5 +1,10 @@
 import { auth } from "@/auth";
-import { fetchCalendarEvents } from "@/lib/calendar";
+import {
+  addDemoCalendarEvent,
+  fetchCalendarEvents,
+  isDemoMode,
+  type GoogleCalendarApiEvent,
+} from "@/lib/calendar";
 
 type CalendarEventInput = {
   title?: string;
@@ -33,6 +38,10 @@ function addDays(date: string, days: number) {
 }
 
 export async function GET() {
+  if (isDemoMode()) {
+    return Response.json(await fetchCalendarEvents());
+  }
+
   const session = await auth();
 
   if (!session?.accessToken) {
@@ -44,13 +53,15 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
+  const demoMode = isDemoMode();
+  const session = demoMode ? null : await auth();
+  const accessToken = session?.accessToken;
 
-  if (!session?.accessToken) {
+  if (!demoMode && !accessToken) {
     return Response.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  if (!hasCalendarWriteScope(session.scopes)) {
+  if (!demoMode && !hasCalendarWriteScope(session?.scopes)) {
     return Response.json(
       { error: "Calendar editing permission is required." },
       { status: 403 },
@@ -91,13 +102,21 @@ export async function POST(request: Request) {
         },
   };
 
+  if (demoMode) {
+    const demoEvent = addDemoCalendarEvent({
+        id: `demo-${Date.now()}`,
+        ...event,
+    } satisfies GoogleCalendarApiEvent);
+    return Response.json(demoEvent, { status: 201 });
+  }
+
   const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(event),

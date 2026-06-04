@@ -57,6 +57,8 @@ const EVENT_COLORS = [
   "#2563eb",
 ];
 
+const demoCalendarEvents: GoogleCalendarApiEvent[] = buildDemoCalendarEvents();
+
 function startOfDay(date: Date) {
   const next = new Date(date);
   next.setHours(0, 0, 0, 0);
@@ -73,6 +75,10 @@ function addMonths(date: Date, months: number) {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months);
   return next;
+}
+
+function toDateString(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function parseCalendarDate(value: string) {
@@ -135,6 +141,92 @@ function detectEventIcon(event: GoogleCalendarApiEvent) {
   return patterns.find((pattern) => pattern.test.test(haystack));
 }
 
+function makeAllDayDemoEvent(
+  id: string,
+  summary: string,
+  startOffsetDays: number,
+  durationDays: number,
+  description?: string,
+) {
+  const start = addDays(startOfDay(new Date()), startOffsetDays);
+  const end = addDays(start, durationDays);
+
+  return {
+    id,
+    summary,
+    description,
+    start: { date: toDateString(start) },
+    end: { date: toDateString(end) },
+  } satisfies GoogleCalendarApiEvent;
+}
+
+function buildDemoCalendarEvents(): GoogleCalendarApiEvent[] {
+  return [
+    makeAllDayDemoEvent(
+      "demo-1",
+      "Quarterly nap residency",
+      2,
+      4,
+      "A strategic retreat from all inboxes.",
+    ),
+    makeAllDayDemoEvent(
+      "demo-2",
+      "Spreadsheet karaoke festival",
+      4,
+      3,
+      "Bring your loudest formulas and safest backup.",
+    ),
+    makeAllDayDemoEvent(
+      "demo-3",
+      "Out of office: charging the cloud",
+      5,
+      5,
+      "The cloud needs its own vacation too.",
+    ),
+    makeAllDayDemoEvent(
+      "demo-4",
+      "Flight to a meeting that could be an email",
+      7,
+      3,
+      "Gate B is where the decisions happen.",
+    ),
+    makeAllDayDemoEvent(
+      "demo-5",
+      "Birthday of the office fern",
+      9,
+      1,
+      "A very leafy milestone.",
+    ),
+    makeAllDayDemoEvent(
+      "demo-6",
+      "Family visit: the cousins of productivity",
+      10,
+      4,
+      "They are here to ask about your roadmap.",
+    ),
+    makeAllDayDemoEvent(
+      "demo-7",
+      "Trip to the land of unfinished tasks",
+      13,
+      6,
+      "The only travel destination with a backlog.",
+    ),
+  ];
+}
+
+export function isDemoMode() {
+  return process.env.DEMO_MODE === "true";
+}
+
+export function getDemoCalendarEvents() {
+  return demoCalendarEvents.slice();
+}
+
+export function addDemoCalendarEvent(input: GoogleCalendarApiEvent) {
+  demoCalendarEvents.push(input);
+  return input;
+}
+
 function formatRangeLabel(start: Date, end: Date, allDay: boolean) {
   const startDay = startOfDay(start);
   const endDay = startOfDay(new Date(end.getTime() - 1));
@@ -154,7 +246,15 @@ function formatRangeLabel(start: Date, end: Date, allDay: boolean) {
   return `${formatDateLabel(startDay, true)} ${formatTime(start)} → ${formatDateLabel(endDay, true)} ${formatTime(end)}`;
 }
 
-export async function fetchCalendarEvents(accessToken: string) {
+export async function fetchCalendarEvents(accessToken?: string) {
+  if (isDemoMode()) {
+    return getDemoCalendarEvents();
+  }
+
+  if (!accessToken) {
+    throw new Error("Missing Google access token.");
+  }
+
   const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
   const now = startOfDay(new Date());
   const timeMin = addMonths(now, -1).toISOString();
