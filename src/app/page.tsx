@@ -25,10 +25,10 @@ export default async function Home() {
       <main className={styles.page}>
         <section className={styles.hero}>
           <p className={styles.kicker}>Google Calendar timeline</p>
-          <h1>Connect your calendar to render multi-day entries as horizontal bars.</h1>
+          <h1>Connect your calendar to view multi-day events across six months.</h1>
           <p className={styles.description}>
-            Sign in with Google to read calendar events and visualize each span
-            across the days it covers.
+            Sign in with Google to read calendar events and visualize only the
+            entries that span more than one day.
           </p>
           <AuthBar signedIn={false} />
         </section>
@@ -54,11 +54,7 @@ export default async function Home() {
         <section className={styles.hero}>
           <div>
             <p className={styles.kicker}>Google Calendar timeline</p>
-            <h1>
-              {reconnectRequired
-                ? "Calendar access needs to be reconnected."
-                : "Connected, but the calendar feed could not be loaded."}
-            </h1>
+            <h1>{reconnectRequired ? "Reconnect Google Calendar access." : "Connected, but the calendar feed could not be loaded."}</h1>
             <p className={styles.description}>
               {reconnectRequired
                 ? "The current Google token does not have Calendar read permission. Reconnect to grant the correct scope."
@@ -76,16 +72,16 @@ export default async function Home() {
       <section className={styles.hero}>
         <div>
           <p className={styles.kicker}>Google Calendar timeline</p>
-          <h1>Reading calendar data and mapping multi-day events to colored lines.</h1>
+          <h1>Reading calendar data and mapping multi-day events to a horizontal, scrollable timeline.</h1>
           <p className={styles.description}>
-            The timeline below is built from Google Calendar API data and stretches
-            each event across the days it spans.
+            The timeline below shows the next six months, one line per multi-day
+            event, with each bar stretching across the days it spans.
           </p>
         </div>
         <AuthBar signedIn />
       </section>
 
-      <CalendarTimeline days={timeline.days} events={timeline.events} />
+      <CalendarTimeline days={timeline.days} months={timeline.months} events={timeline.events} />
     </main>
   );
 }
