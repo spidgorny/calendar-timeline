@@ -6,9 +6,17 @@ import type { CalendarEvent, MonthGroup } from "@/lib/calendar";
 import styles from "./calendar-timeline.module.css";
 
 type CalendarTimelineProps = {
+  title: string;
+  subtitle: string;
+  emptyMessage: string;
+  actionLabel: string;
+  actionIcon: string;
+  density: "regular" | "compact";
   days: Date[];
   months: MonthGroup[];
   events: Array<CalendarEvent & { startIndex: number; endIndex: number }>;
+  tone: "main" | "hidden";
+  onEventAction: (eventId: string) => void;
 };
 
 function isToday(date: Date) {
@@ -28,13 +36,28 @@ function monthTint(index: number): CSSProperties {
   };
 }
 
-export function CalendarTimeline({ days, months, events }: CalendarTimelineProps) {
+export function CalendarTimeline({
+  title,
+  subtitle,
+  emptyMessage,
+  actionLabel,
+  actionIcon,
+  density,
+  days,
+  months,
+  events,
+  tone,
+  onEventAction,
+}: CalendarTimelineProps) {
   return (
-    <section className={styles.timelineShell} aria-label="Calendar timeline">
+    <section
+      className={`${styles.timelineShell} ${tone === "hidden" ? styles.timelineShellHidden : ""} ${density === "compact" ? styles.timelineShellCompact : ""}`}
+      aria-label={title}
+    >
       <div className={styles.timelineToolbar}>
         <div>
-          <p className={styles.toolbarTitle}>Horizontal timeline</p>
-          <p className={styles.toolbarSubtitle}>Today through the next 6 months</p>
+          <p className={styles.toolbarTitle}>{title}</p>
+          <p className={styles.toolbarSubtitle}>{subtitle}</p>
         </div>
         <div className={styles.toolbarLegend}>
           <span className={styles.legendDot} />
@@ -93,21 +116,32 @@ export function CalendarTimeline({ days, months, events }: CalendarTimelineProps
 
           {events.length === 0 ? (
             <div className={styles.emptyState} style={{ gridColumn: "2 / -1" }}>
-              No multi-day events in this 6-month window.
+              {emptyMessage}
             </div>
           ) : null}
 
           {events.map((event) => {
-            const showBarLabel = event.endIndex > event.startIndex;
+            const showBarLabel = density === "regular" && event.endIndex > event.startIndex;
 
             return (
               <Fragment key={event.id}>
                 <div className={styles.eventLabel}>
                   <div className={styles.eventTitleRow}>
-                    <strong>{event.title}</strong>
-                    {event.startedBeforeWindow ? (
-                      <span className={styles.eventPill}>Continues</span>
-                    ) : null}
+                    <div className={styles.eventTitleCopy}>
+                      <strong>{event.title}</strong>
+                      {event.startedBeforeWindow ? (
+                        <span className={styles.eventPill}>Continues</span>
+                      ) : null}
+                    </div>
+                    <button
+                      className={styles.eventActionButton}
+                      type="button"
+                      onClick={() => onEventAction(event.id)}
+                      aria-label={`${actionLabel} ${event.title}`}
+                    >
+                      <span aria-hidden="true">{actionIcon}</span>
+                      <span>{actionLabel}</span>
+                    </button>
                   </div>
                   <span>{event.rangeLabel}</span>
                 </div>
