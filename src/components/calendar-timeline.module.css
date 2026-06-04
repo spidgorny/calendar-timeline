@@ -139,6 +139,14 @@
   background: linear-gradient(180deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.02));
 }
 
+.weekSeparatorLine {
+  justify-self: start;
+  width: 1px;
+  background: rgba(203, 213, 225, 0.28);
+  pointer-events: none;
+  z-index: 4;
+}
+
 .dayNumber {
   font-size: 1rem;
   font-weight: 800;
@@ -221,6 +229,8 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  min-width: 0;
+  width: 100%;
   min-height: 2.6rem;
   margin: 0.6rem 0.35rem;
   padding: 0.45rem 0.85rem;
@@ -229,12 +239,109 @@
   font-size: 0.88rem;
   font-weight: 700;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  position: relative;
+  overflow: visible;
 }
 
 .eventBar span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.eventIcon {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.eventTitleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eventTrackSingleDay .eventBar {
+  justify-content: center;
+}
+
+.eventTrackSingleDay .eventIcon {
+  font-size: 1.1rem;
+}
+
+.eventTooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.6rem);
+  width: min(260px, 75vw);
+  transform: translate(-50%, 8px);
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.96);
+  color: #f8fafc;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  text-align: left;
+  z-index: 10;
+}
+
+.eventTooltipTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.eventTooltipIcon {
+  flex: 0 0 auto;
+}
+
+.eventTooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -0.35rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: rgba(15, 23, 42, 0.96);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.eventTooltip strong {
+  font-size: 0.92rem;
+}
+
+.eventTooltip span,
+.eventTooltip p {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: rgba(248, 250, 252, 0.88);
+}
+
+.eventTooltip p {
+  margin: 0;
+  white-space: normal;
+}
+
+.eventTooltip a {
+  color: #c7d2fe;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: auto;
+}
+
+.eventBar:hover .eventTooltip,
+.eventBar:focus-visible .eventTooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .emptyState {

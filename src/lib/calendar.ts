@@ -1,6 +1,7 @@
-type GoogleCalendarApiEvent = {
+export type GoogleCalendarApiEvent = {
   id: string;
   summary?: string;
+  description?: string;
   start?: {
     date?: string;
     dateTime?: string;
@@ -21,6 +22,11 @@ export type CalendarEvent = {
   allDay: boolean;
   color: string;
   rangeLabel: string;
+  icon?: string;
+  iconLabel?: string;
+  location?: string;
+  description?: string;
+  htmlLink?: string;
   startIndex: number;
   endIndex: number;
   startedBeforeWindow: boolean;
@@ -108,6 +114,27 @@ function formatTime(date: Date) {
   }).format(date);
 }
 
+function detectEventIcon(event: GoogleCalendarApiEvent) {
+  const haystack = [
+    event.summary,
+    event.description,
+    event.location,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const patterns = [
+    { test: /\bbirthday\b|\bbday\b/, icon: "🎂", label: "Birthday" },
+    { test: /\bflight\b|\bairfare\b|\bairport\b|\bplane\b/, icon: "✈️", label: "Flight" },
+    { test: /\btrip\b|\btravel\b|\bvacation\b|\bholiday\b/, icon: "🧳", label: "Trip" },
+    { test: /\bvisit\b|\bvisiting\b/, icon: "👋", label: "Visit" },
+    { test: /\bparty\b|\bcelebration\b/, icon: "🎉", label: "Party" },
+  ];
+
+  return patterns.find((pattern) => pattern.test.test(haystack));
+}
+
 function formatRangeLabel(start: Date, end: Date, allDay: boolean) {
   const startDay = startOfDay(start);
   const endDay = startOfDay(new Date(end.getTime() - 1));
@@ -174,6 +201,7 @@ export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineMo
         ? parseCalendarDate(event.end!.date!)
         : new Date(event.end!.dateTime!);
       const color = EVENT_COLORS[index % EVENT_COLORS.length];
+      const eventIcon = detectEventIcon(event);
 
       return {
         id: event.id,
@@ -183,6 +211,11 @@ export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineMo
         allDay,
         color,
         rangeLabel: formatRangeLabel(start, end, allDay),
+        icon: eventIcon?.icon,
+        iconLabel: eventIcon?.label,
+        location: event.location,
+        description: event.description,
+        htmlLink: event.htmlLink,
       };
     })
     .filter((event) => {
@@ -191,7 +224,7 @@ export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineMo
       const spanDays =
         Math.floor((spanEnd.getTime() - spanStart.getTime()) / 86_400_000) + 1;
 
-      return spanDays > 1;
+      return spanDays > 1 || event.allDay;
     })
     .filter((event) => event.end > now)
     .sort((left, right) => left.start.getTime() - right.start.getTime());

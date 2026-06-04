@@ -1,3 +1,5 @@
+"use client";
+
 import { Fragment } from "react";
 import type { CSSProperties } from "react";
 import type { CalendarEvent, MonthGroup } from "@/lib/calendar";
@@ -75,6 +77,19 @@ export function CalendarTimeline({ days, months, events }: CalendarTimelineProps
               </span>
             </div>
           ))}
+          {days.map((day, index) =>
+            index % 7 === 6 ? (
+              <div
+                key={`${day.toISOString()}-week-separator`}
+                className={styles.weekSeparatorLine}
+                aria-hidden="true"
+                style={{
+                  gridColumn: `${index + 3} / ${index + 4}`,
+                  gridRow: "1 / -1",
+                }}
+              />
+            ) : null,
+          )}
 
           {events.length === 0 ? (
             <div className={styles.emptyState} style={{ gridColumn: "2 / -1" }}>
@@ -82,43 +97,73 @@ export function CalendarTimeline({ days, months, events }: CalendarTimelineProps
             </div>
           ) : null}
 
-          {events.map((event) => (
-            <Fragment key={event.id}>
-              <div className={styles.eventLabel}>
-                <div className={styles.eventTitleRow}>
-                  <strong>{event.title}</strong>
-                  {event.startedBeforeWindow ? (
-                    <span className={styles.eventPill}>Continues</span>
-                  ) : null}
+          {events.map((event) => {
+            const showBarLabel = event.endIndex > event.startIndex;
+
+            return (
+              <Fragment key={event.id}>
+                <div className={styles.eventLabel}>
+                  <div className={styles.eventTitleRow}>
+                    <strong>{event.title}</strong>
+                    {event.startedBeforeWindow ? (
+                      <span className={styles.eventPill}>Continues</span>
+                    ) : null}
+                  </div>
+                  <span>{event.rangeLabel}</span>
                 </div>
-                <span>{event.rangeLabel}</span>
-              </div>
-              <div
-                className={styles.eventTrack}
-                style={{
-                  gridColumn: "2 / -1",
-                  gridTemplateColumns: `repeat(${days.length}, minmax(28px, 1fr))`,
-                }}
-              >
-                {days.map((day) => (
-                  <div
-                    className={`${styles.trackCell} ${isToday(day) ? styles.trackCellToday : ""}`}
-                    key={day.toISOString()}
-                    aria-hidden="true"
-                  />
-                ))}
                 <div
-                  className={styles.eventBar}
+                  className={`${styles.eventTrack} ${showBarLabel ? "" : styles.eventTrackSingleDay}`}
                   style={{
-                    background: `linear-gradient(135deg, ${event.color}, ${event.color}CC)`,
-                    gridColumn: `${event.startIndex + 1} / ${event.endIndex + 2}`,
+                    gridColumn: "2 / -1",
+                    gridTemplateColumns: `repeat(${days.length}, minmax(28px, 1fr))`,
                   }}
                 >
-                  <span>{event.title}</span>
+                  {days.map((day) => (
+                    <div
+                      className={`${styles.trackCell} ${isToday(day) ? styles.trackCellToday : ""}`}
+                      key={day.toISOString()}
+                      aria-hidden="true"
+                    />
+                  ))}
+                  <div
+                    className={styles.eventBar}
+                    style={{
+                      background: `linear-gradient(135deg, ${event.color}, ${event.color}CC)`,
+                      gridColumn: `${event.startIndex + 1} / ${event.endIndex + 2}`,
+                    }}
+                    aria-label={event.title}
+                    tabIndex={0}
+                  >
+                    {event.icon ? (
+                      <span className={styles.eventIcon} aria-hidden="true">
+                        {event.icon}
+                      </span>
+                    ) : null}
+                    {showBarLabel ? <span className={styles.eventTitleText}>{event.title}</span> : null}
+                    <div className={styles.eventTooltip} role="tooltip">
+                      <div className={styles.eventTooltipTitle}>
+                        {event.icon ? (
+                          <span className={styles.eventTooltipIcon} aria-hidden="true">
+                            {event.icon}
+                          </span>
+                        ) : null}
+                        <strong>{event.title}</strong>
+                      </div>
+                      <span>{event.rangeLabel}</span>
+                      {event.iconLabel ? <span>{event.iconLabel}</span> : null}
+                      {event.location ? <span>{event.location}</span> : null}
+                      {event.description ? <p>{event.description}</p> : null}
+                      {event.htmlLink ? (
+                        <a href={event.htmlLink} target="_blank" rel="noreferrer">
+                          Open in Google Calendar
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </Fragment>
-          ))}
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     </section>
