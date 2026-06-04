@@ -1,0 +1,104 @@
+.timelineCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.timelineGrid {
+  display: grid;
+  min-width: max-content;
+}
+
+.corner,
+.dayHeader,
+.eventLabel,
+.eventTrack {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.corner {
+  padding: 1rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+  background: #f8fafc;
+}
+
+.dayHeader {
+  padding: 1rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+  border-left: 1px solid #e5e7eb;
+}
+
+.eventLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+}
+
+.eventLabel strong {
+  font-size: 0.96rem;
+  color: #0f172a;
+}
+
+.eventLabel span {
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.eventTrack {
+  display: grid;
+  min-height: 4rem;
+  background:
+    linear-gradient(to right, rgba(148, 163, 184, 0.08), rgba(148, 163, 184, 0.08))
+      0 0 / 100% 100% no-repeat;
+  position: relative;
+}
+
+.trackCell {
+  border-left: 1px solid #f1f5f9;
+  border-right: 1px solid #f8fafc;
+}
+
+.eventBar {
+  align-self: center;
+  border-radius: 999px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.75rem 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.9rem;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+}
+
+@media (max-width: 900px) {
+  .timelineGrid {
+    font-size: 0.9rem;
+  }
+
+  .corner {
+    padding: 0.875rem 1rem;
+  }
+
+  .dayHeader,
+  .eventLabel {
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+  }
+}

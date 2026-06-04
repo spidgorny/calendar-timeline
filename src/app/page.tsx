@@ -1,66 +1,91 @@
-import Image from "next/image";
+import { auth } from "@/auth";
+import { AuthBar } from "@/components/auth-bar";
+import { CalendarTimeline } from "@/components/calendar-timeline";
+import {
+  buildTimelineModel,
+  fetchCalendarEvents,
+} from "@/lib/calendar";
 import styles from "./page.module.css";
 
-export default function Home() {
+function needsReconnect(error: string | null) {
+  return Boolean(
+    error &&
+      (error.includes("ACCESS_TOKEN_SCOPE_INSUFFICIENT") ||
+        error.includes("insufficientPermissions") ||
+        error.includes("Insufficient Permission")),
+  );
+}
+
+export default async function Home() {
+  const session = await auth();
+  const accessToken = session?.accessToken;
+
+  if (!accessToken) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.hero}>
+          <p className={styles.kicker}>Google Calendar timeline</p>
+          <h1>Connect your calendar to render multi-day entries as horizontal bars.</h1>
+          <p className={styles.description}>
+            Sign in with Google to read calendar events and visualize each span
+            across the days it covers.
+          </p>
+          <AuthBar signedIn={false} />
+        </section>
+      </main>
+    );
+  }
+
+  let timeline: ReturnType<typeof buildTimelineModel> | null = null;
+  let loadError: string | null = null;
+
+  try {
+    const events = await fetchCalendarEvents(accessToken);
+    timeline = buildTimelineModel(events);
+  } catch (error) {
+    loadError = error instanceof Error ? error.message : "Unknown calendar error.";
+  }
+
+  const reconnectRequired = needsReconnect(loadError);
+
+  if (loadError || !timeline) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.hero}>
+          <div>
+            <p className={styles.kicker}>Google Calendar timeline</p>
+            <h1>
+              {reconnectRequired
+                ? "Calendar access needs to be reconnected."
+                : "Connected, but the calendar feed could not be loaded."}
+            </h1>
+            <p className={styles.description}>
+              {reconnectRequired
+                ? "The current Google token does not have Calendar read permission. Reconnect to grant the correct scope."
+                : loadError ?? "Unable to build the calendar timeline."}
+            </p>
+          </div>
+          <AuthBar signedIn mode={reconnectRequired ? "reconnect" : "disconnect"} />
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className={styles.page}>
+      <section className={styles.hero}>
+        <div>
+          <p className={styles.kicker}>Google Calendar timeline</p>
+          <h1>Reading calendar data and mapping multi-day events to colored lines.</h1>
+          <p className={styles.description}>
+            The timeline below is built from Google Calendar API data and stretches
+            each event across the days it spans.
           </p>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <AuthBar signedIn />
+      </section>
+
+      <CalendarTimeline days={timeline.days} events={timeline.events} />
+    </main>
   );
 }
