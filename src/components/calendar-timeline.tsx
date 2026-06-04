@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { CSSProperties } from "react";
 import type { CalendarEvent, MonthGroup } from "@/lib/calendar";
+import boardStyles from "./calendar-board.module.css";
 import styles from "./calendar-timeline.module.css";
 
 type CalendarTimelineProps = {
@@ -12,6 +13,8 @@ type CalendarTimelineProps = {
   actionLabel: string;
   actionIcon: string;
   density: "regular" | "compact";
+  isCompact: boolean;
+  onToggleCompact: () => void;
   days: Date[];
   months: MonthGroup[];
   events: Array<CalendarEvent & { startIndex: number; endIndex: number }>;
@@ -43,6 +46,8 @@ export function CalendarTimeline({
   actionLabel,
   actionIcon,
   density,
+  isCompact,
+  onToggleCompact,
   days,
   months,
   events,
@@ -59,11 +64,24 @@ export function CalendarTimeline({
           <p className={styles.toolbarTitle}>{title}</p>
           <p className={styles.toolbarSubtitle}>{subtitle}</p>
         </div>
-        <div className={styles.toolbarLegend}>
-          <span className={styles.legendDot} />
-          <span>Today</span>
-          <span className={styles.legendDivider} />
-          <span>{events.length} multi-day events</span>
+        <div className={styles.toolbarControls}>
+          <button
+            className={boardStyles.viewToggle}
+            type="button"
+            aria-pressed={isCompact}
+            onClick={onToggleCompact}
+          >
+            <span className={boardStyles.viewToggleState}>
+              {isCompact ? "Compact on" : "Compact off"}
+            </span>
+            <span>View mode</span>
+          </button>
+          <div className={styles.toolbarLegend}>
+            <span className={styles.legendDot} />
+            <span>Today</span>
+            <span className={styles.legendDivider} />
+            <span>{events.length} multi-day events</span>
+          </div>
         </div>
       </div>
 

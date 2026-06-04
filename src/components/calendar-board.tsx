@@ -8,7 +8,6 @@ import {
 } from "@/lib/calendar";
 import { CalendarTimeline } from "@/components/calendar-timeline";
 import { EVENTS_KEY } from "@/components/event-fab";
-import styles from "./calendar-board.module.css";
 
 async function fetchEvents(url: string) {
   const response = await fetch(url);
@@ -51,19 +50,6 @@ export function CalendarBoard({ initialEvents }: CalendarBoardProps) {
 
   return (
     <>
-      <div className={styles.boardToolbar}>
-        <button
-          className={styles.viewToggle}
-          type="button"
-          aria-pressed={isCompact}
-          onClick={() => setIsCompact((current) => !current)}
-        >
-          <span className={styles.viewToggleState}>
-            {isCompact ? "Compact on" : "Compact off"}
-          </span>
-          <span>View mode</span>
-        </button>
-      </div>
       {error ? (
         <p style={{ color: "#b91c1c", fontWeight: 600, marginBottom: "0.75rem" }}>
           {error.message}
@@ -76,6 +62,8 @@ export function CalendarBoard({ initialEvents }: CalendarBoardProps) {
         actionLabel="Hide"
         actionIcon="🙈"
         density={isCompact ? "compact" : "regular"}
+        isCompact={isCompact}
+        onToggleCompact={() => setIsCompact((current) => !current)}
         days={timeline.days}
         months={timeline.months}
         events={visibleEvents}
@@ -91,6 +79,8 @@ export function CalendarBoard({ initialEvents }: CalendarBoardProps) {
             actionLabel="Show"
             actionIcon="↩️"
             density={isCompact ? "compact" : "regular"}
+            isCompact={isCompact}
+            onToggleCompact={() => setIsCompact((current) => !current)}
             days={timeline.days}
             months={timeline.months}
             events={hiddenEvents}
