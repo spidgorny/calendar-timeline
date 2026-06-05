@@ -37,21 +37,21 @@
 }
 
 .timelineShellCompact .eventLabel {
-  padding-top: 0.7rem;
-  padding-bottom: 0.7rem;
-  gap: 0.15rem;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  gap: 0.1rem;
 }
 
 .timelineShellCompact .eventTrack {
-  min-height: 3.4rem;
+  min-height: 3rem;
 }
 
 .timelineShellCompact .eventBar {
-  min-height: 1.9rem;
-  margin-top: 0.35rem;
-  margin-bottom: 0.35rem;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
+  min-height: 1.7rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  padding-top: 0.18rem;
+  padding-bottom: 0.18rem;
 }
 
 .timelineShellCompact .eventTooltip {
@@ -196,6 +196,8 @@
 
 .monthHeader {
   grid-row: 1;
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   padding: 0.95rem 0.85rem;
@@ -251,8 +253,8 @@
   z-index: 5;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.7rem 1.1rem;
+  gap: 0.25rem;
+  padding: 0.55rem 1.1rem;
   background: #fff;
 }
 
@@ -371,7 +373,8 @@
 .eventTrack {
   grid-column: 2 / -1;
   display: grid;
-  min-height: 5rem;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 4.2rem;
   position: relative;
   background:
     linear-gradient(90deg, rgba(148, 163, 184, 0.045) 0, rgba(148, 163, 184, 0.045) 100%) 0 0 /
@@ -398,6 +401,7 @@
 }
 
 .eventBar {
+  grid-row: 1;
   align-self: center;
   z-index: 1;
   display: flex;
@@ -405,9 +409,9 @@
   gap: 0.55rem;
   min-width: 0;
   width: 100%;
-  min-height: 2.6rem;
-  margin: 0.6rem 0;
-  padding: 0.45rem 0.85rem;
+  min-height: 2.3rem;
+  margin: 0.45rem 0;
+  padding: 0.35rem 0.85rem;
   border-radius: 999px;
   color: #fff;
   font-size: 0.88rem;

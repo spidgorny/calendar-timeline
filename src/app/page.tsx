@@ -187,7 +187,7 @@ export default async function Home() {
         <section className={styles.hero}>
           <div>
             <div className={styles.titleRow}>
-                <Image className={styles.titleIcon} src="/icon.svg" alt="" aria-hidden="true" width={24} height={24} />
+                <Image className={styles.titleIcon} src="/icon.svg" alt="" aria-hidden="true" width={48} height={48} />
               <p className={styles.kicker}>Google Calendar timeline</p>
             </div>
             <h1>{reconnectRequired ? "Reconnect Google Calendar access." : "Connected, but the calendar feed could not be loaded."}</h1>
@@ -210,7 +210,7 @@ export default async function Home() {
       <section className={styles.hero}>
         <div>
           <div className={styles.titleRow}>
-            <Image className={styles.titleIcon} src="/icon.svg" alt="" aria-hidden="true" width={24} height={24} />
+            <Image className={styles.titleIcon} src="/icon.svg" alt="" aria-hidden="true" width={48} height={48} />
             <p className={styles.kicker}>Google Calendar timeline</p>
           </div>
         </div>
