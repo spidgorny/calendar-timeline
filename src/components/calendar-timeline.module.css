@@ -58,8 +58,12 @@
   width: min(220px, 75vw);
 }
 
-.timelineShellCompact .eventLabel span {
+.timelineShellCompact .eventLabel > span {
   display: none;
+}
+
+.timelineShellCompact .eventLabel .eventDurationBadge {
+  display: inline-flex;
 }
 
 .timelineShellCompact .eventPill {
@@ -139,6 +143,25 @@
 .timelineGrid {
   display: grid;
   min-width: max-content;
+  position: relative;
+}
+
+.timelineGrid::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 280px;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 31px,
+    rgba(226, 232, 240, 0.9) 31px,
+    rgba(226, 232, 240, 0.9) 32px
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 .corner,
@@ -155,7 +178,7 @@
 .cornerSub {
   position: sticky;
   left: 0;
-  z-index: 3;
+  z-index: 6;
   display: flex;
   align-items: center;
   padding: 1rem 1.1rem;
@@ -200,19 +223,10 @@
   padding: 0.65rem 0.45rem;
   background: #fff;
   color: #334155;
-  border-left: 1px solid rgba(241, 245, 249, 0.9);
 }
 
 .dayHeaderToday {
   background: linear-gradient(180deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.02));
-}
-
-.weekSeparatorLine {
-  justify-self: start;
-  width: 1px;
-  background: rgba(203, 213, 225, 0.28);
-  pointer-events: none;
-  z-index: 4;
 }
 
 .dayNumber {
@@ -222,7 +236,7 @@
 }
 
 .dayLabel {
-  font-size: 0.72rem;
+  font-size: 0.56rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -230,9 +244,10 @@
 }
 
 .eventLabel {
+  grid-column: 1 / 2;
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -252,6 +267,26 @@
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.eventTitleMeta {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.eventActionSlot {
+  display: inline-grid;
+  align-items: center;
+  justify-items: end;
+}
+
+.eventActionSlot > * {
+  grid-area: 1 / 1;
 }
 
 .eventLabel strong {
@@ -273,6 +308,20 @@
   text-transform: uppercase;
 }
 
+.eventDurationBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.24rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4338ca;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
 .eventLabel span {
   font-size: 0.86rem;
   line-height: 1.4;
@@ -283,10 +332,10 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
   border: 1px solid rgba(203, 213, 225, 0.8);
   border-radius: 999px;
-  padding: 0.35rem 0.6rem;
+  padding: 0.24rem 0.55rem;
   background: rgba(248, 250, 252, 0.92);
   color: #334155;
   font: inherit;
@@ -296,7 +345,7 @@
   text-transform: uppercase;
   cursor: pointer;
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(-2px);
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
 }
@@ -312,6 +361,12 @@
   pointer-events: auto;
 }
 
+.eventLabel:hover .eventDurationBadge,
+.eventLabel:focus-within .eventDurationBadge {
+  opacity: 0;
+  transform: translateY(2px);
+}
+
 .eventTrack {
   grid-column: 2 / -1;
   display: grid;
@@ -324,7 +379,6 @@
 
 .trackCell {
   position: relative;
-  border-left: 1px solid rgba(241, 245, 249, 0.9);
 }
 
 .trackCellToday {
@@ -346,9 +400,17 @@
   color: #fff;
   font-size: 0.88rem;
   font-weight: 700;
+  box-sizing: border-box;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
   position: relative;
   overflow: visible;
+  touch-action: none;
+}
+
+.eventBarResizing {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.92),
+    0 18px 36px rgba(15, 23, 42, 0.22);
 }
 
 .timelineShellHidden .eventBar {
@@ -379,6 +441,64 @@
   white-space: nowrap;
 }
 
+.resizeHandle {
+  position: absolute;
+  top: 50%;
+  width: 0.85rem;
+  height: calc(100% - 0.55rem);
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.36);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.26);
+  cursor: ew-resize;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.resizeHandle span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 25%,
+      rgba(255, 255, 255, 0.88) 25%,
+      rgba(255, 255, 255, 0.88) 40%,
+      transparent 40%,
+      transparent 60%,
+      rgba(255, 255, 255, 0.88) 60%,
+      rgba(255, 255, 255, 0.88) 75%,
+      transparent 75%,
+      transparent 100%
+    );
+}
+
+.resizeHandleStart {
+  left: 0.45rem;
+}
+
+.resizeHandleEnd {
+  right: 0.45rem;
+}
+
+.eventBar:hover .resizeHandle,
+.eventBar:focus-visible .resizeHandle,
+.eventBarResizing .resizeHandle {
+  opacity: 1;
+}
+
+.resizeHandle:hover,
+.resizeHandle:focus-visible {
+  opacity: 1;
+  outline: none;
+  background: rgba(255, 255, 255, 0.52);
+}
+
 .eventTrackSingleDay .eventBar {
   justify-content: center;
 }
@@ -389,6 +509,14 @@
 
 .eventTrackSingleDay .eventTitleText {
   display: none;
+}
+
+.eventTrackSingleDay .resizeHandleStart {
+  left: 0.2rem;
+}
+
+.eventTrackSingleDay .resizeHandleEnd {
+  right: 0.2rem;
 }
 
 .eventTooltip {

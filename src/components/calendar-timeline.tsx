@@ -6,12 +6,13 @@ import type { CalendarEvent, MonthGroup } from "@/lib/calendar";
 import boardStyles from "./calendar-board.module.css";
 import styles from "./calendar-timeline.module.css";
 
+const DAY_COLUMN_WIDTH = 32;
+
 type CalendarTimelineProps = {
   title: string;
   subtitle: string;
   emptyMessage: string;
   actionLabel: string;
-  actionIcon: string;
   density: "regular" | "compact";
   isCompact: boolean;
   onToggleCompact: () => void;
@@ -19,6 +20,17 @@ type CalendarTimelineProps = {
   months: MonthGroup[];
   events: Array<CalendarEvent & { startIndex: number; endIndex: number }>;
   tone: "main" | "hidden";
+  canResizeEvents: boolean;
+  resizingEventId: string | null;
+  onEventResizeStart: (input: {
+    clientX: number;
+    dayWidth: number;
+    edge: "start" | "end";
+    endIndex: number;
+    eventId: string;
+    pointerId: number;
+    startIndex: number;
+  }) => void;
   onEventAction: (eventId: string) => void;
 };
 
@@ -44,7 +56,6 @@ export function CalendarTimeline({
   subtitle,
   emptyMessage,
   actionLabel,
-  actionIcon,
   density,
   isCompact,
   onToggleCompact,
@@ -52,6 +63,9 @@ export function CalendarTimeline({
   months,
   events,
   tone,
+  canResizeEvents,
+  resizingEventId,
+  onEventResizeStart,
   onEventAction,
 }: CalendarTimelineProps) {
   return (
@@ -89,7 +103,7 @@ export function CalendarTimeline({
         <div
           className={styles.timelineGrid}
           style={{
-            gridTemplateColumns: `280px repeat(${days.length}, minmax(28px, 1fr))`,
+            gridTemplateColumns: `280px repeat(${days.length}, ${DAY_COLUMN_WIDTH}px)`,
           }}
         >
           <div className={styles.corner}>Event</div>
@@ -118,19 +132,6 @@ export function CalendarTimeline({
               </span>
             </div>
           ))}
-          {days.map((day, index) =>
-            index % 7 === 6 ? (
-              <div
-                key={`${day.toISOString()}-week-separator`}
-                className={styles.weekSeparatorLine}
-                aria-hidden="true"
-                style={{
-                  gridColumn: `${index + 3} / ${index + 4}`,
-                  gridRow: "1 / -1",
-                }}
-              />
-            ) : null,
-          )}
 
           {events.length === 0 ? (
             <div className={styles.emptyState} style={{ gridColumn: "2 / -1" }}>
@@ -147,27 +148,32 @@ export function CalendarTimeline({
                   <div className={styles.eventTitleRow}>
                     <div className={styles.eventTitleCopy}>
                       <strong>{event.title}</strong>
-                      {event.startedBeforeWindow ? (
-                        <span className={styles.eventPill}>Continues</span>
-                      ) : null}
+                      <div className={styles.eventTitleMeta}>
+                        <div className={styles.eventActionSlot}>
+                          <span className={styles.eventDurationBadge}>{event.durationBadge}</span>
+                          <button
+                            className={styles.eventActionButton}
+                            type="button"
+                            onClick={() => onEventAction(event.id)}
+                            aria-label={`${actionLabel} ${event.title}`}
+                          >
+                            <span>{actionLabel}</span>
+                          </button>
+                        </div>
+                        {event.startedBeforeWindow ? (
+                          <span className={styles.eventPill}>Continues</span>
+                        ) : null}
+                      </div>
                     </div>
-                    <button
-                      className={styles.eventActionButton}
-                      type="button"
-                      onClick={() => onEventAction(event.id)}
-                      aria-label={`${actionLabel} ${event.title}`}
-                    >
-                      <span aria-hidden="true">{actionIcon}</span>
-                      <span>{actionLabel}</span>
-                    </button>
                   </div>
                   <span>{event.rangeLabel}</span>
                 </div>
                 <div
                   className={`${styles.eventTrack} ${showBarLabel ? "" : styles.eventTrackSingleDay}`}
+                  data-event-track="true"
                   style={{
                     gridColumn: "2 / -1",
-                    gridTemplateColumns: `repeat(${days.length}, minmax(28px, 1fr))`,
+                    gridTemplateColumns: `repeat(${days.length}, ${DAY_COLUMN_WIDTH}px)`,
                   }}
                 >
                   {days.map((day) => (
@@ -178,7 +184,7 @@ export function CalendarTimeline({
                     />
                   ))}
                   <div
-                    className={styles.eventBar}
+                    className={`${styles.eventBar} ${resizingEventId === event.id ? styles.eventBarResizing : ""}`}
                     style={{
                       background: `linear-gradient(135deg, ${event.color}, ${event.color}CC)`,
                       gridColumn: `${event.startIndex + 1} / ${event.endIndex + 2}`,
@@ -186,6 +192,60 @@ export function CalendarTimeline({
                     aria-label={event.title}
                     tabIndex={0}
                   >
+                    {canResizeEvents ? (
+                      <>
+                        <button
+                          className={`${styles.resizeHandle} ${styles.resizeHandleStart}`}
+                          type="button"
+                          aria-label={`Resize start of ${event.title}`}
+                          onPointerDown={(pointerEvent) => {
+                            const track = pointerEvent.currentTarget.closest("[data-event-track]");
+                            if (!(track instanceof HTMLElement)) {
+                              return;
+                            }
+
+                            pointerEvent.preventDefault();
+                            pointerEvent.stopPropagation();
+                            onEventResizeStart({
+                              clientX: pointerEvent.clientX,
+                              dayWidth: track.getBoundingClientRect().width / days.length,
+                              edge: "start",
+                              endIndex: event.endIndex,
+                              eventId: event.id,
+                              pointerId: pointerEvent.pointerId,
+                              startIndex: event.startIndex,
+                            });
+                          }}
+                        >
+                          <span aria-hidden="true" />
+                        </button>
+                        <button
+                          className={`${styles.resizeHandle} ${styles.resizeHandleEnd}`}
+                          type="button"
+                          aria-label={`Resize end of ${event.title}`}
+                          onPointerDown={(pointerEvent) => {
+                            const track = pointerEvent.currentTarget.closest("[data-event-track]");
+                            if (!(track instanceof HTMLElement)) {
+                              return;
+                            }
+
+                            pointerEvent.preventDefault();
+                            pointerEvent.stopPropagation();
+                            onEventResizeStart({
+                              clientX: pointerEvent.clientX,
+                              dayWidth: track.getBoundingClientRect().width / days.length,
+                              edge: "end",
+                              endIndex: event.endIndex,
+                              eventId: event.id,
+                              pointerId: pointerEvent.pointerId,
+                              startIndex: event.startIndex,
+                            });
+                          }}
+                        >
+                          <span aria-hidden="true" />
+                        </button>
+                      </>
+                    ) : null}
                     {event.icon ? (
                       <span className={styles.eventIcon} aria-hidden="true">
                         {event.icon}

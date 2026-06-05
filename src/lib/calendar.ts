@@ -5,13 +5,20 @@ export type GoogleCalendarApiEvent = {
   start?: {
     date?: string;
     dateTime?: string;
+    timeZone?: string;
   };
   end?: {
     date?: string;
     dateTime?: string;
+    timeZone?: string;
   };
   htmlLink?: string;
   location?: string;
+};
+
+export type GoogleCalendarApiEventSpanUpdate = {
+  start: NonNullable<GoogleCalendarApiEvent["start"]>;
+  end: NonNullable<GoogleCalendarApiEvent["end"]>;
 };
 
 export type CalendarEvent = {
@@ -22,6 +29,7 @@ export type CalendarEvent = {
   allDay: boolean;
   color: string;
   rangeLabel: string;
+  durationBadge: string;
   icon?: string;
   iconLabel?: string;
   location?: string;
@@ -88,6 +96,17 @@ function parseCalendarDate(value: string) {
 
 function isAllDay(event: GoogleCalendarApiEvent) {
   return Boolean(event.start?.date && event.end?.date);
+}
+
+function applyTimeOfDay(targetDay: Date, source: Date) {
+  const next = startOfDay(targetDay);
+  next.setHours(
+    source.getHours(),
+    source.getMinutes(),
+    source.getSeconds(),
+    source.getMilliseconds(),
+  );
+  return next;
 }
 
 function formatDateLabel(date: Date, includeWeekday = false) {
@@ -227,7 +246,22 @@ export function addDemoCalendarEvent(input: GoogleCalendarApiEvent) {
   return input;
 }
 
-function formatRangeLabel(start: Date, end: Date, allDay: boolean) {
+export function updateDemoCalendarEvent(
+  eventId: string,
+  update: GoogleCalendarApiEventSpanUpdate,
+) {
+  const index = demoCalendarEvents.findIndex((event) => event.id === eventId);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const nextEvent = applyEventSpanUpdate(demoCalendarEvents[index], update);
+  demoCalendarEvents[index] = nextEvent;
+  return nextEvent;
+}
+
+export function formatEventRangeLabel(start: Date, end: Date, allDay: boolean) {
   const startDay = startOfDay(start);
   const endDay = startOfDay(new Date(end.getTime() - 1));
 
@@ -244,6 +278,118 @@ function formatRangeLabel(start: Date, end: Date, allDay: boolean) {
   }
 
   return `${formatDateLabel(startDay, true)} ${formatTime(start)} → ${formatDateLabel(endDay, true)} ${formatTime(end)}`;
+}
+
+export function formatEventDurationBadge(spanDays: number) {
+  if (spanDays >= 7 && spanDays % 7 === 0) {
+    const weeks = spanDays / 7;
+    return weeks === 1 ? "1 week" : `${weeks} weeks`;
+  }
+
+  return spanDays === 1 ? "1 day" : `${spanDays} days`;
+}
+
+export function getCalendarEventRange(event: GoogleCalendarApiEvent) {
+  const allDay = isAllDay(event);
+  const start = allDay
+    ? parseCalendarDate(event.start?.date ?? "")
+    : new Date(event.start?.dateTime ?? "");
+  const end = allDay
+    ? parseCalendarDate(event.end?.date ?? "")
+    : new Date(event.end?.dateTime ?? "");
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error(`Event ${event.id} has an invalid start or end date.`);
+  }
+
+  return {
+    start,
+    end,
+    allDay,
+    rangeLabel: formatEventRangeLabel(start, end, allDay),
+  };
+}
+
+export function buildEventSpanUpdate(
+  event: GoogleCalendarApiEvent,
+  startDay: Date,
+  endDay: Date,
+): GoogleCalendarApiEventSpanUpdate {
+  if (isAllDay(event)) {
+    return {
+      start: { date: toDateString(startOfDay(startDay)) },
+      end: { date: toDateString(addDays(startOfDay(endDay), 1)) },
+    };
+  }
+
+  if (!event.start?.dateTime || !event.end?.dateTime) {
+    throw new Error(`Event ${event.id} is missing timed boundaries.`);
+  }
+
+  const originalStart = new Date(event.start.dateTime);
+  const originalEnd = new Date(event.end.dateTime);
+
+  if (Number.isNaN(originalStart.getTime()) || Number.isNaN(originalEnd.getTime())) {
+    throw new Error(`Event ${event.id} has an invalid timed boundary.`);
+  }
+
+  return {
+    start: {
+      dateTime: applyTimeOfDay(startDay, originalStart).toISOString(),
+      timeZone: event.start.timeZone,
+    },
+    end: {
+      dateTime: applyTimeOfDay(endDay, originalEnd).toISOString(),
+      timeZone: event.end.timeZone,
+    },
+  };
+}
+
+export function getMinimumResizableDayGap(event: GoogleCalendarApiEvent) {
+  if (isAllDay(event)) {
+    return 0;
+  }
+
+  if (!event.start?.dateTime || !event.end?.dateTime) {
+    throw new Error(`Event ${event.id} is missing timed boundaries.`);
+  }
+
+  const start = new Date(event.start.dateTime);
+  const end = new Date(event.end.dateTime);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error(`Event ${event.id} has an invalid timed boundary.`);
+  }
+
+  const startClock =
+    start.getHours() * 3_600_000 +
+    start.getMinutes() * 60_000 +
+    start.getSeconds() * 1_000 +
+    start.getMilliseconds();
+  const endClock =
+    end.getHours() * 3_600_000 +
+    end.getMinutes() * 60_000 +
+    end.getSeconds() * 1_000 +
+    end.getMilliseconds();
+
+  return endClock <= startClock ? 1 : 0;
+}
+
+export function applyEventSpanUpdate(
+  event: GoogleCalendarApiEvent,
+  update: GoogleCalendarApiEventSpanUpdate,
+): GoogleCalendarApiEvent {
+  return {
+    ...event,
+    start: {
+      ...event.start,
+      ...update.start,
+    },
+    end: {
+      ...event.end,
+      ...update.end,
+    },
+  };
 }
 
 export async function fetchCalendarEvents(accessToken?: string) {
@@ -293,15 +439,13 @@ export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineMo
   const normalized = events
     .filter((event) => event.start && event.end)
     .map((event, index) => {
-      const allDay = isAllDay(event);
-      const start = allDay
-        ? parseCalendarDate(event.start!.date!)
-        : new Date(event.start!.dateTime!);
-      const end = allDay
-        ? parseCalendarDate(event.end!.date!)
-        : new Date(event.end!.dateTime!);
+      const { allDay, start, end, rangeLabel } = getCalendarEventRange(event);
       const color = EVENT_COLORS[index % EVENT_COLORS.length];
       const eventIcon = detectEventIcon(event);
+      const spanStart = startOfDay(start);
+      const spanEnd = startOfDay(new Date(end.getTime() - 1));
+      const spanDays =
+        Math.floor((spanEnd.getTime() - spanStart.getTime()) / 86_400_000) + 1;
 
       return {
         id: event.id,
@@ -310,7 +454,8 @@ export function buildTimelineModel(events: GoogleCalendarApiEvent[]): TimelineMo
         end,
         allDay,
         color,
-        rangeLabel: formatRangeLabel(start, end, allDay),
+        rangeLabel,
+        durationBadge: formatEventDurationBadge(spanDays),
         icon: eventIcon?.icon,
         iconLabel: eventIcon?.label,
         location: event.location,

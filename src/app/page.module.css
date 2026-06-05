@@ -12,18 +12,18 @@
 
 .landing,
 .hero {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1.5rem;
-    max-width: 1280px;
-    width: 100%;
-    margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  width: 100%;
 }
 
 .landing {
-    align-items: stretch;
-    min-height: calc(100vh - 8rem);
+  align-items: stretch;
+  min-height: calc(100vh - 8rem);
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .landingCopy {

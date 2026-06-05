@@ -217,7 +217,7 @@ export default async function Home() {
         {demoMode ? null : <AuthBar signedIn />}
       </section>
 
-      <CalendarBoard initialEvents={initialEvents} />
+      <CalendarBoard initialEvents={initialEvents} canEditEvents={canAddEvents} />
       <EventFab canCreateEvents={canAddEvents} reconnectHref={reconnectHref} />
       {footer}
     </main>
