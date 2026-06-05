@@ -43,8 +43,15 @@ function isToday(date: Date) {
   );
 }
 
+function isWeekend(date: Date) {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+const MONTH_TINT_HUES = [248, 18, 198, 328, 122, 42, 282, 212, 354, 158, 78, 228];
+
 function monthTint(index: number): CSSProperties {
-  const hue = (index * 47) % 360;
+  const hue = MONTH_TINT_HUES[index % MONTH_TINT_HUES.length];
   return {
     background: `linear-gradient(180deg, hsla(${hue}, 88%, 96%, 1), hsla(${hue}, 84%, 92%, 1))`,
     boxShadow: `inset 0 3px 0 hsla(${hue}, 76%, 60%, 0.22)`,
@@ -107,12 +114,12 @@ export function CalendarTimeline({
           }}
         >
           <div className={styles.corner}>Event</div>
-          {months.map((month) => (
+          {months.map((month, monthIndex) => (
             <div
               className={styles.monthHeader}
               key={month.label}
               style={{
-                ...monthTint(month.startIndex),
+                ...monthTint(monthIndex),
                 gridColumn: `${month.startIndex + 2} / ${month.endIndex + 3}`,
               }}
             >
@@ -176,6 +183,16 @@ export function CalendarTimeline({
                     gridTemplateColumns: `repeat(${days.length}, ${DAY_COLUMN_WIDTH}px)`,
                   }}
                 >
+                  {days.map((day, index) =>
+                    isWeekend(day) ? (
+                      <div
+                        className={styles.weekendColumn}
+                        key={`${day.toISOString()}-weekend`}
+                        style={{ left: `${index * DAY_COLUMN_WIDTH}px` }}
+                        aria-hidden="true"
+                      />
+                    ) : null,
+                  )}
                   {days.map((day) => (
                     <div
                       className={`${styles.trackCell} ${isToday(day) ? styles.trackCellToday : ""}`}
