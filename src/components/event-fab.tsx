@@ -4,8 +4,13 @@ import { useState, type FormEvent } from "react";
 import { mutate } from "swr";
 import styles from "./event-fab.module.css";
 
-export const EVENTS_KEY = "/api/calendar/events";
-export const EVENT_SELECTION_STORAGE_KEY = "calendar-timeline:selected-date-range";
+export function getEventsKey(calendarId: string) {
+  return `/api/calendar/events?calendarId=${encodeURIComponent(calendarId)}`;
+}
+
+export function getEventSelectionStorageKey(calendarId: string) {
+  return `calendar-timeline:selected-date-range:${calendarId}`;
+}
 
 type SelectedDateRange = {
   startDate: string;
@@ -15,6 +20,7 @@ type SelectedDateRange = {
 type EventFabProps = {
   canCreateEvents: boolean;
   reconnectHref: string;
+  calendarId: string;
 };
 
 type EventFormState = {
@@ -46,12 +52,12 @@ function addDays(date: string, days: number) {
   return dateInputValue(value);
 }
 
-function readSelectedDateRange() {
+function readSelectedDateRange(calendarId: string) {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const rawValue = window.localStorage.getItem(EVENT_SELECTION_STORAGE_KEY);
+  const rawValue = window.localStorage.getItem(getEventSelectionStorageKey(calendarId));
 
   if (!rawValue) {
     return null;
@@ -77,7 +83,7 @@ function readSelectedDateRange() {
   return null;
 }
 
-export function EventFab({ canCreateEvents, reconnectHref }: EventFabProps) {
+export function EventFab({ canCreateEvents, reconnectHref, calendarId }: EventFabProps) {
   const [open, setOpen] = useState(false);
   const [needsAccess, setNeedsAccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,7 +108,7 @@ export function EventFab({ canCreateEvents, reconnectHref }: EventFabProps) {
       return;
     }
 
-    const selectedDateRange = readSelectedDateRange();
+    const selectedDateRange = readSelectedDateRange(calendarId);
 
     setError(null);
     setNeedsAccess(false);
@@ -128,7 +134,7 @@ export function EventFab({ canCreateEvents, reconnectHref }: EventFabProps) {
     setIsSubmitting(true);
     setError(null);
 
-    const response = await fetch("/api/calendar/events", {
+    const response = await fetch(getEventsKey(calendarId), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -145,7 +151,7 @@ export function EventFab({ canCreateEvents, reconnectHref }: EventFabProps) {
       return;
     }
 
-    await mutate(EVENTS_KEY);
+    await mutate(getEventsKey(calendarId));
     setIsSubmitting(false);
     setOpen(false);
   }

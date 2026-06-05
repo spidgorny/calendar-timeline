@@ -16,9 +16,10 @@ import {
   DAY_COLUMN_WIDTH,
   type TimelineSelection,
 } from "@/components/calendar-timeline";
-import { EVENTS_KEY, EVENT_SELECTION_STORAGE_KEY } from "@/components/event-fab";
-
-const HIDDEN_IDS_STORAGE_KEY = "calendar-timeline:hidden-ids";
+import {
+  getEventSelectionStorageKey,
+  getEventsKey,
+} from "@/components/event-fab";
 
 type ResizeEdge = "start" | "end";
 type SelectionScope = "main" | "hidden";
@@ -165,9 +166,16 @@ async function fetchEvents(url: string) {
 type CalendarBoardProps = {
   initialEvents: GoogleCalendarApiEvent[];
   canEditEvents: boolean;
+  calendarId: string;
 };
 
-export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardProps) {
+export function CalendarBoard({
+  initialEvents,
+  canEditEvents,
+  calendarId,
+}: CalendarBoardProps) {
+  const eventsKey = getEventsKey(calendarId);
+  const hiddenIdsStorageKey = `calendar-timeline:hidden-ids:${calendarId}`;
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [storageReady, setStorageReady] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
@@ -182,7 +190,7 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
   const [activeTableSelection, setActiveTableSelection] =
     useState<ActiveTableSelection | null>(null);
   const { data, error, mutate } = useSWR<GoogleCalendarApiEvent[]>(
-    EVENTS_KEY,
+    eventsKey,
     fetchEvents,
     {
       fallbackData: initialEvents,
@@ -195,7 +203,7 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
     }
 
     let nextHiddenIds: string[] = [];
-    const storedValue = window.localStorage.getItem(HIDDEN_IDS_STORAGE_KEY);
+    const storedValue = window.localStorage.getItem(hiddenIdsStorageKey);
 
     if (storedValue) {
       try {
@@ -216,7 +224,7 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, []);
+  }, [hiddenIdsStorageKey]);
 
   const sourceEvents = data ?? initialEvents;
   const timeline = useMemo(() => buildTimelineModel(sourceEvents), [sourceEvents]);
@@ -234,8 +242,8 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
       return;
     }
 
-    window.localStorage.setItem(HIDDEN_IDS_STORAGE_KEY, JSON.stringify(persistedHiddenIds));
-  }, [persistedHiddenIds, storageReady]);
+    window.localStorage.setItem(hiddenIdsStorageKey, JSON.stringify(persistedHiddenIds));
+  }, [hiddenIdsStorageKey, persistedHiddenIds, storageReady]);
 
   const eventsWithResizeDraft = useMemo(() => {
     if (!resizeDraft) {
@@ -347,7 +355,7 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
       setInteractionError(null);
 
       try {
-        const response = await fetch(EVENTS_KEY, {
+        const response = await fetch(eventsKey, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -390,7 +398,7 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
         );
       }
     },
-    [mutate, sourceEvents, sourceEventsById, timeline.days],
+    [eventsKey, mutate, sourceEvents, sourceEventsById, timeline.days],
   );
 
   const startResize = useCallback(
@@ -664,15 +672,15 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
     }
 
     if (!selectedDateRange) {
-      window.localStorage.removeItem(EVENT_SELECTION_STORAGE_KEY);
+      window.localStorage.removeItem(getEventSelectionStorageKey(calendarId));
       return;
     }
 
     window.localStorage.setItem(
-      EVENT_SELECTION_STORAGE_KEY,
+      getEventSelectionStorageKey(calendarId),
       JSON.stringify(selectedDateRange),
     );
-  }, [selectedDateRange]);
+  }, [calendarId, selectedDateRange]);
 
   return (
     <>

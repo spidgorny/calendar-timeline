@@ -21,6 +21,12 @@ export type GoogleCalendarApiEventSpanUpdate = {
   end: NonNullable<GoogleCalendarApiEvent["end"]>;
 };
 
+export type CalendarTab = {
+  slug: string;
+  label: string;
+  calendarId: string;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;
@@ -65,7 +71,8 @@ const EVENT_COLORS = [
   "#2563eb",
 ];
 
-const demoCalendarEvents: GoogleCalendarApiEvent[] = buildDemoCalendarEvents();
+export const DEFAULT_CALENDAR_SLUG = "default";
+const demoCalendarEventsByCalendar = new Map<string, GoogleCalendarApiEvent[]>();
 
 function startOfDay(date: Date) {
   const next = new Date(date);
@@ -233,15 +240,125 @@ function buildDemoCalendarEvents(): GoogleCalendarApiEvent[] {
   ];
 }
 
+function getDefaultCalendarId() {
+  return process.env.GOOGLE_CALENDAR_ID || "primary";
+}
+
+export function getDefaultCalendarTab(): CalendarTab {
+  return {
+    slug: DEFAULT_CALENDAR_SLUG,
+    label: "Default",
+    calendarId: getDefaultCalendarId(),
+  };
+}
+
+function getCalendarRouteSegment(calendarId: string, defaultCalendarId: string) {
+  return calendarId === defaultCalendarId ? DEFAULT_CALENDAR_SLUG : calendarId;
+}
+
+type GoogleCalendarListItem = {
+  id: string;
+  summary?: string;
+  primary?: boolean;
+};
+
+function sortCalendarTabs(left: CalendarTab, right: CalendarTab) {
+  if (left.slug === DEFAULT_CALENDAR_SLUG) {
+    return -1;
+  }
+
+  if (right.slug === DEFAULT_CALENDAR_SLUG) {
+    return 1;
+  }
+
+  return left.label.localeCompare(right.label);
+}
+
+export async function fetchCalendarTabs(accessToken?: string) {
+  const defaultCalendar = getDefaultCalendarTab();
+  const defaultCalendarId = defaultCalendar.calendarId;
+
+  if (isDemoMode()) {
+    return [defaultCalendar] satisfies CalendarTab[];
+  }
+
+  if (!accessToken) {
+    throw new Error("Missing Google access token.");
+  }
+
+  const url = new URL("https://www.googleapis.com/calendar/v3/users/me/calendarList");
+  url.searchParams.set("maxResults", "100");
+  url.searchParams.set("showHidden", "false");
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Google Calendar API error: ${response.status} ${message}`);
+  }
+
+  const payload = (await response.json()) as {
+    items?: GoogleCalendarListItem[];
+  };
+
+  const tabs = (payload.items ?? []).map((calendar) => ({
+    slug: getCalendarRouteSegment(calendar.id, defaultCalendarId),
+    label: calendar.id === defaultCalendarId ? "Default" : calendar.summary || "Untitled calendar",
+    calendarId: calendar.id,
+  })) satisfies CalendarTab[];
+
+  if (!tabs.some((calendar) => calendar.calendarId === defaultCalendarId)) {
+    tabs.push(defaultCalendar);
+  }
+
+  return tabs.sort(sortCalendarTabs);
+}
+
+export function resolveCalendarTabFromRoute(
+  slugInput: string | string[] | undefined,
+  calendars: CalendarTab[],
+) {
+  const slug = Array.isArray(slugInput) ? slugInput[0] : slugInput;
+
+  if (!slug) {
+    return calendars.find((calendar) => calendar.slug === DEFAULT_CALENDAR_SLUG) ?? calendars[0];
+  }
+
+  return (
+    calendars.find(
+      (calendar) =>
+        calendar.slug === slug || encodeURIComponent(calendar.slug) === slug,
+    ) ?? null
+  );
+}
+
+function getDemoCalendarEventsStore(calendarId: string) {
+  const existingEvents = demoCalendarEventsByCalendar.get(calendarId);
+
+  if (existingEvents) {
+    return existingEvents;
+  }
+
+  const nextEvents = buildDemoCalendarEvents();
+  demoCalendarEventsByCalendar.set(calendarId, nextEvents);
+  return nextEvents;
+}
+
 export function isDemoMode() {
   return process.env.DEMO_MODE === "true";
 }
 
-export function getDemoCalendarEvents() {
-  return demoCalendarEvents.slice();
+export function getDemoCalendarEvents(calendarId = "primary") {
+  return getDemoCalendarEventsStore(calendarId).slice();
 }
 
-export function addDemoCalendarEvent(input: GoogleCalendarApiEvent) {
+export function addDemoCalendarEvent(input: GoogleCalendarApiEvent, calendarId = "primary") {
+  const demoCalendarEvents = getDemoCalendarEventsStore(calendarId);
   demoCalendarEvents.push(input);
   return input;
 }
@@ -249,7 +366,9 @@ export function addDemoCalendarEvent(input: GoogleCalendarApiEvent) {
 export function updateDemoCalendarEvent(
   eventId: string,
   update: GoogleCalendarApiEventSpanUpdate,
+  calendarId = "primary",
 ) {
+  const demoCalendarEvents = getDemoCalendarEventsStore(calendarId);
   const index = demoCalendarEvents.findIndex((event) => event.id === eventId);
 
   if (index === -1) {
@@ -392,16 +511,15 @@ export function applyEventSpanUpdate(
   };
 }
 
-export async function fetchCalendarEvents(accessToken?: string) {
+export async function fetchCalendarEvents(accessToken?: string, calendarId = "primary") {
   if (isDemoMode()) {
-    return getDemoCalendarEvents();
+    return getDemoCalendarEvents(calendarId);
   }
 
   if (!accessToken) {
     throw new Error("Missing Google access token.");
   }
 
-  const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
   const now = startOfDay(new Date());
   const timeMin = addMonths(now, -1).toISOString();
   const timeMax = addMonths(now, 6).toISOString();

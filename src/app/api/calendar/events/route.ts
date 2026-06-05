@@ -72,9 +72,16 @@ function getBoundaryTime(boundary: GoogleCalendarApiEventSpanUpdate["start"]) {
   return new Date(boundary.dateTime ?? "").getTime();
 }
 
-export async function GET() {
+function getSelectedCalendarId(request: Request) {
+  const url = new URL(request.url);
+  return url.searchParams.get("calendarId") ?? process.env.GOOGLE_CALENDAR_ID ?? "primary";
+}
+
+export async function GET(request: Request) {
+  const selectedCalendarId = getSelectedCalendarId(request);
+
   if (isDemoMode()) {
-    return Response.json(await fetchCalendarEvents());
+    return Response.json(await fetchCalendarEvents(undefined, selectedCalendarId));
   }
 
   const session = await auth();
@@ -83,11 +90,12 @@ export async function GET() {
     return Response.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  const events = await fetchCalendarEvents(session.accessToken);
+  const events = await fetchCalendarEvents(session.accessToken, selectedCalendarId);
   return Response.json(events);
 }
 
 export async function POST(request: Request) {
+  const selectedCalendarId = getSelectedCalendarId(request);
   const demoMode = isDemoMode();
   const session = demoMode ? null : await auth();
   const accessToken = session?.accessToken;
@@ -141,13 +149,12 @@ export async function POST(request: Request) {
     const demoEvent = addDemoCalendarEvent({
       id: `demo-${Date.now()}`,
       ...event,
-    } satisfies GoogleCalendarApiEvent);
+    } satisfies GoogleCalendarApiEvent, selectedCalendarId);
     return Response.json(demoEvent, { status: 201 });
   }
 
-  const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
   const response = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(selectedCalendarId)}/events`,
     {
       method: "POST",
       headers: {
@@ -170,6 +177,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const selectedCalendarId = getSelectedCalendarId(request);
   const demoMode = isDemoMode();
   const session = demoMode ? null : await auth();
   const accessToken = session?.accessToken;
@@ -211,7 +219,11 @@ export async function PATCH(request: Request) {
   } satisfies GoogleCalendarApiEventSpanUpdate;
 
   if (demoMode) {
-    const updatedEvent = updateDemoCalendarEvent(body.eventId, update);
+    const updatedEvent = updateDemoCalendarEvent(
+      body.eventId,
+      update,
+      selectedCalendarId,
+    );
 
     if (!updatedEvent) {
       return Response.json({ error: "Event not found." }, { status: 404 });
@@ -220,9 +232,8 @@ export async function PATCH(request: Request) {
     return Response.json(updatedEvent);
   }
 
-  const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
   const response = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(body.eventId)}`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(selectedCalendarId)}/events/${encodeURIComponent(body.eventId)}`,
     {
       method: "PATCH",
       headers: {

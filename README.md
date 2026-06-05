@@ -59,7 +59,7 @@ Then fill in the required values.
 | --- | --- | --- |
 | `GOOGLE_CLIENT_ID` | For Google mode | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | For Google mode | Google OAuth client secret |
-| `GOOGLE_CALENDAR_ID` | Optional | Calendar ID to read/write, defaults to `primary` |
+| `GOOGLE_CALENDAR_ID` | Optional | Default calendar ID to read/write and map to the `/default` route, defaults to `primary` |
 | `DEMO_MODE` | Optional | Set to `true` to use sample data instead of Google Calendar |
 | `NEXTAUTH_SECRET` | Yes | Secret used by NextAuth |
 | `NEXTAUTH_URL` | Yes | Base app URL, for example `http://localhost:3000` |
@@ -91,11 +91,12 @@ There is currently no dedicated test suite configured in this repository.
 
 ## How it works
 
-- `src/app/page.tsx` handles the landing page, authenticated app view, and error states.
-- `src/lib/calendar.ts` fetches Google events, exposes demo-mode sample data, and normalizes calendar entries into timeline-ready rows and date columns.
+- `src/app/page.tsx` serves the landing page and redirects signed-in users to the default calendar route.
+- `src/app/[calendar]/page.tsx` renders the selected calendar tab, authenticated app view, and error states.
+- `src/lib/calendar.ts` fetches the available Google calendars plus events, exposes demo-mode sample data, and normalizes calendar entries into timeline-ready rows and date columns.
 - `src/components/calendar-board.tsx` manages client-side state like compact mode, hidden events, and SWR data refresh.
 - `src/components/calendar-timeline.tsx` renders the timeline grid, bars, hover details, and toolbar controls.
-- `src/app/api/calendar/events/route.ts` reads and creates calendar events.
+- `src/app/api/calendar/events/route.ts` reads and mutates events for the currently selected calendar tab.
 - `src/auth.ts` configures Google OAuth, JWT sessions, and token refresh behavior.
 
 ## Behavior notes
@@ -104,6 +105,7 @@ There is currently no dedicated test suite configured in this repository.
 - **Single-day timed events are intentionally filtered out** from the timeline.
 - **All-day events stay visible**, even when they span only one day.
 - In demo mode, the app returns sample overlapping events and does not require Google sign-in.
+- Calendar tabs are fetched from the Google Calendar API `calendarList.list` endpoint when signed in.
 
 ## Deployment
 

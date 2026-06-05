@@ -7,12 +7,20 @@ import styles from "./auth-bar.module.css";
 type AuthBarProps = {
   signedIn: boolean;
   mode?: "connect" | "reconnect" | "logout";
+  callbackUrl?: string;
 };
 
-export function AuthBar({ signedIn, mode = signedIn ? "logout" : "connect" }: AuthBarProps) {
+export function AuthBar({
+  signedIn,
+  mode = signedIn ? "logout" : "connect",
+  callbackUrl = "/",
+}: AuthBarProps) {
   if (mode === "connect") {
     return (
-      <Link className={styles.button} href="/api/auth/signin/google?callbackUrl=/">
+      <Link
+        className={styles.button}
+        href={`/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+      >
         Connect Google Calendar
       </Link>
     );
@@ -22,7 +30,7 @@ export function AuthBar({ signedIn, mode = signedIn ? "logout" : "connect" }: Au
     return (
       <Link
         className={styles.button}
-        href="/api/auth/signin/google?callbackUrl=/&prompt=consent"
+        href={`/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}&prompt=consent`}
       >
         Reconnect Google Calendar
       </Link>
