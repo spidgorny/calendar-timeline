@@ -5,6 +5,12 @@ import { mutate } from "swr";
 import styles from "./event-fab.module.css";
 
 export const EVENTS_KEY = "/api/calendar/events";
+export const EVENT_SELECTION_STORAGE_KEY = "calendar-timeline:selected-date-range";
+
+type SelectedDateRange = {
+  startDate: string;
+  endDate: string;
+};
 
 type EventFabProps = {
   canCreateEvents: boolean;
@@ -40,6 +46,37 @@ function addDays(date: string, days: number) {
   return dateInputValue(value);
 }
 
+function readSelectedDateRange() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawValue = window.localStorage.getItem(EVENT_SELECTION_STORAGE_KEY);
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue) as unknown;
+
+    if (
+      typeof parsedValue === "object" &&
+      parsedValue !== null &&
+      "startDate" in parsedValue &&
+      "endDate" in parsedValue &&
+      typeof parsedValue.startDate === "string" &&
+      typeof parsedValue.endDate === "string"
+    ) {
+      return parsedValue as SelectedDateRange;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export function EventFab({ canCreateEvents, reconnectHref }: EventFabProps) {
   const [open, setOpen] = useState(false);
   const [needsAccess, setNeedsAccess] = useState(false);
@@ -65,8 +102,17 @@ export function EventFab({ canCreateEvents, reconnectHref }: EventFabProps) {
       return;
     }
 
+    const selectedDateRange = readSelectedDateRange();
+
     setError(null);
     setNeedsAccess(false);
+    if (selectedDateRange) {
+      setForm((current) => ({
+        ...current,
+        startDate: selectedDateRange.startDate,
+        endDate: selectedDateRange.endDate,
+      }));
+    }
     setOpen(true);
   }
 

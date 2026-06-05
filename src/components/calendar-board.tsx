@@ -11,12 +11,17 @@ import {
   getMinimumResizableDayGap,
   type GoogleCalendarApiEvent,
 } from "@/lib/calendar";
-import { CalendarTimeline } from "@/components/calendar-timeline";
-import { EVENTS_KEY } from "@/components/event-fab";
+import {
+  CalendarTimeline,
+  DAY_COLUMN_WIDTH,
+  type TimelineSelection,
+} from "@/components/calendar-timeline";
+import { EVENTS_KEY, EVENT_SELECTION_STORAGE_KEY } from "@/components/event-fab";
 
 const HIDDEN_IDS_STORAGE_KEY = "calendar-timeline:hidden-ids";
 
 type ResizeEdge = "start" | "end";
+type SelectionScope = "main" | "hidden";
 
 type ResizeDraft = {
   eventId: string;
@@ -33,6 +38,116 @@ type ActiveResize = ResizeDraft & {
   pointerId: number;
   dayWidth: number;
 };
+
+type ActiveTableSelection = {
+  scope: SelectionScope;
+  anchorRow: number;
+  anchorColumn: number;
+  currentRow: number;
+  currentColumn: number;
+  hasExtended: boolean;
+  pointerId: number;
+};
+
+function toLocalDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function normalizeSelectionBounds(
+  anchorRow: number,
+  anchorColumn: number,
+  currentRow: number,
+  currentColumn: number,
+): TimelineSelection {
+  return {
+    rowStart: Math.min(anchorRow, currentRow),
+    rowEnd: Math.max(anchorRow, currentRow),
+    columnStart: Math.min(anchorColumn, currentColumn),
+    columnEnd: Math.max(anchorColumn, currentColumn),
+  };
+}
+
+function getSelectionCellFromPoint(clientX: number, clientY: number) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const hitElements = document.elementsFromPoint(clientX, clientY);
+
+  for (const element of hitElements) {
+    if (!(element instanceof HTMLElement)) {
+      continue;
+    }
+
+    const dayHeader = element.closest<HTMLElement>("[data-selection-kind='day-header']");
+
+    if (dayHeader) {
+      const scope = dayHeader.dataset.selectionScope as SelectionScope | undefined;
+      const rowIndex = Number(dayHeader.dataset.selectionRowIndex);
+      const columnIndex = Number(dayHeader.dataset.selectionColumnIndex);
+
+      if (
+        scope &&
+        Number.isInteger(rowIndex) &&
+        Number.isInteger(columnIndex)
+      ) {
+        return {
+          scope,
+          rowIndex,
+          columnIndex,
+        };
+      }
+    }
+
+    const trackCell = element.closest<HTMLElement>("[data-selection-kind='track-cell']");
+
+    if (trackCell) {
+      const scope = trackCell.dataset.selectionScope as SelectionScope | undefined;
+      const rowIndex = Number(trackCell.dataset.selectionRowIndex);
+      const columnIndex = Number(trackCell.dataset.selectionColumnIndex);
+
+      if (
+        scope &&
+        Number.isInteger(rowIndex) &&
+        Number.isInteger(columnIndex)
+      ) {
+        return {
+          scope,
+          rowIndex,
+          columnIndex,
+        };
+      }
+    }
+
+    const trackRow = element.closest<HTMLElement>("[data-selection-kind='event-track']");
+
+    if (!trackRow) {
+      continue;
+    }
+
+    const scope = trackRow.dataset.selectionScope as SelectionScope | undefined;
+    const rowIndex = Number(trackRow.dataset.selectionRowIndex);
+    const columnCount = Number(trackRow.dataset.selectionColumnCount);
+
+    if (!scope || !Number.isInteger(rowIndex) || !Number.isInteger(columnCount)) {
+      continue;
+    }
+
+    const bounds = trackRow.getBoundingClientRect();
+    const columnIndex = Math.max(
+      0,
+      Math.min(columnCount - 1, Math.floor((clientX - bounds.left) / DAY_COLUMN_WIDTH)),
+    );
+
+    return {
+      scope,
+      rowIndex,
+      columnIndex,
+    };
+  }
+
+  return null;
+}
 
 async function fetchEvents(url: string) {
   const response = await fetch(url);
@@ -60,6 +175,12 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
   const [resizeDraft, setResizeDraft] = useState<ResizeDraft | null>(null);
   const [activeResize, setActiveResize] = useState<ActiveResize | null>(null);
   const [pendingResizeEventId, setPendingResizeEventId] = useState<string | null>(null);
+  const [tableSelections, setTableSelections] = useState<Record<SelectionScope, TimelineSelection | null>>({
+    main: null,
+    hidden: null,
+  });
+  const [activeTableSelection, setActiveTableSelection] =
+    useState<ActiveTableSelection | null>(null);
   const { data, error, mutate } = useSWR<GoogleCalendarApiEvent[]>(
     EVENTS_KEY,
     fetchEvents,
@@ -168,6 +289,44 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
     () => eventsWithResizeDraft.filter((event) => hiddenEventSet.has(event.id)),
     [eventsWithResizeDraft, hiddenEventSet],
   );
+  const mainSelection = useMemo(() => {
+    if (!activeTableSelection || activeTableSelection.scope !== "main") {
+      return tableSelections.main;
+    }
+
+    return normalizeSelectionBounds(
+      activeTableSelection.anchorRow,
+      activeTableSelection.anchorColumn,
+      activeTableSelection.currentRow,
+      activeTableSelection.currentColumn,
+    );
+  }, [activeTableSelection, tableSelections.main]);
+  const hiddenSelection = useMemo(() => {
+    if (!activeTableSelection || activeTableSelection.scope !== "hidden") {
+      return tableSelections.hidden;
+    }
+
+    return normalizeSelectionBounds(
+      activeTableSelection.anchorRow,
+      activeTableSelection.anchorColumn,
+      activeTableSelection.currentRow,
+      activeTableSelection.currentColumn,
+    );
+  }, [activeTableSelection, tableSelections.hidden]);
+  const selectedDateRange = useMemo(() => {
+    const activeSelection =
+      mainSelection ??
+      hiddenSelection;
+
+    if (!activeSelection) {
+      return null;
+    }
+
+    return {
+      startDate: toLocalDateInputValue(timeline.days[activeSelection.columnStart]),
+      endDate: toLocalDateInputValue(timeline.days[activeSelection.columnEnd]),
+    };
+  }, [hiddenSelection, mainSelection, timeline.days]);
 
   const updateEventDuration = useCallback(
     async (draft: ResizeDraft) => {
@@ -279,6 +438,29 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
     [canEditEvents, pendingResizeEventId, sourceEventsById],
   );
 
+  const startTableSelection = useCallback(
+    (scope: SelectionScope, rowIndex: number, columnIndex: number, pointerId: number) => {
+      if (pendingResizeEventId) {
+        return;
+      }
+
+      setTableSelections({
+        main: null,
+        hidden: null,
+      });
+      setActiveTableSelection({
+        scope,
+        anchorRow: rowIndex,
+        anchorColumn: columnIndex,
+        currentRow: rowIndex,
+        currentColumn: columnIndex,
+        hasExtended: false,
+        pointerId,
+      });
+    },
+    [pendingResizeEventId],
+  );
+
   useEffect(() => {
     if (!activeResize) {
       return;
@@ -377,6 +559,121 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
     };
   }, [activeResize, timeline.days.length, updateEventDuration]);
 
+  useEffect(() => {
+    if (!activeTableSelection) {
+      return;
+    }
+
+    const selectionSession = activeTableSelection;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+
+    function updateSelection(clientX: number, clientY: number) {
+      const nextCell = getSelectionCellFromPoint(clientX, clientY);
+
+      if (!nextCell || nextCell.scope !== selectionSession.scope) {
+        return;
+      }
+
+      setActiveTableSelection((current) => {
+        if (
+          !current ||
+          current.pointerId !== selectionSession.pointerId ||
+          current.scope !== selectionSession.scope
+        ) {
+          return current;
+        }
+
+        if (
+          current.currentRow === nextCell.rowIndex &&
+          current.currentColumn === nextCell.columnIndex
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+          currentRow: nextCell.rowIndex,
+          currentColumn: nextCell.columnIndex,
+          hasExtended: true,
+        };
+      });
+    }
+
+    function finishSelection(clientX: number, clientY: number) {
+      const nextCell = getSelectionCellFromPoint(clientX, clientY);
+      const finalRow =
+        nextCell?.scope === selectionSession.scope
+          ? nextCell.rowIndex
+          : selectionSession.currentRow;
+      const finalColumn =
+        nextCell?.scope === selectionSession.scope
+          ? nextCell.columnIndex
+          : selectionSession.currentColumn;
+      const shouldKeepSelection =
+        selectionSession.hasExtended ||
+        finalRow !== selectionSession.anchorRow ||
+        finalColumn !== selectionSession.anchorColumn;
+
+      setTableSelections({
+        main: null,
+        hidden: null,
+        [selectionSession.scope]: shouldKeepSelection
+          ? normalizeSelectionBounds(
+              selectionSession.anchorRow,
+              selectionSession.anchorColumn,
+              finalRow,
+              finalColumn,
+            )
+          : null,
+      });
+      setActiveTableSelection(null);
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      if (event.pointerId !== selectionSession.pointerId) {
+        return;
+      }
+
+      updateSelection(event.clientX, event.clientY);
+    }
+
+    function handlePointerFinish(event: PointerEvent) {
+      if (event.pointerId !== selectionSession.pointerId) {
+        return;
+      }
+
+      finishSelection(event.clientX, event.clientY);
+    }
+
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", handlePointerFinish);
+    document.addEventListener("pointercancel", handlePointerFinish);
+
+    return () => {
+      document.body.style.userSelect = previousUserSelect;
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerFinish);
+      document.removeEventListener("pointercancel", handlePointerFinish);
+    };
+  }, [activeTableSelection]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!selectedDateRange) {
+      window.localStorage.removeItem(EVENT_SELECTION_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(
+      EVENT_SELECTION_STORAGE_KEY,
+      JSON.stringify(selectedDateRange),
+    );
+  }, [selectedDateRange]);
+
   return (
     <>
       {error || interactionError ? (
@@ -392,12 +689,17 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
         density={isCompact ? "compact" : "regular"}
         isCompact={isCompact}
         onToggleCompact={() => setIsCompact((current) => !current)}
+        selection={mainSelection}
         days={timeline.days}
         months={timeline.months}
         events={visibleEvents}
         tone="main"
         canResizeEvents={canEditEvents}
         resizingEventId={resizeDraft?.eventId ?? pendingResizeEventId}
+        selectionScope="main"
+        onSelectionPointerDown={(rowIndex, columnIndex, pointerId) =>
+          startTableSelection("main", rowIndex, columnIndex, pointerId)
+        }
         onEventResizeStart={startResize}
         onEventAction={(eventId) => setHiddenIds((current) => (current.includes(eventId) ? current : [...current, eventId]))}
       />
@@ -411,12 +713,17 @@ export function CalendarBoard({ initialEvents, canEditEvents }: CalendarBoardPro
             density={isCompact ? "compact" : "regular"}
             isCompact={isCompact}
             onToggleCompact={() => setIsCompact((current) => !current)}
+            selection={hiddenSelection}
             days={timeline.days}
             months={timeline.months}
             events={hiddenEvents}
             tone="hidden"
             canResizeEvents={canEditEvents}
             resizingEventId={resizeDraft?.eventId ?? pendingResizeEventId}
+            selectionScope="hidden"
+            onSelectionPointerDown={(rowIndex, columnIndex, pointerId) =>
+              startTableSelection("hidden", rowIndex, columnIndex, pointerId)
+            }
             onEventResizeStart={startResize}
             onEventAction={(eventId) =>
               setHiddenIds((current) => current.filter((id) => id !== eventId))

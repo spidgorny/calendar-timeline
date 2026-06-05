@@ -6,7 +6,14 @@ import type { CalendarEvent, MonthGroup } from "@/lib/calendar";
 import boardStyles from "./calendar-board.module.css";
 import styles from "./calendar-timeline.module.css";
 
-const DAY_COLUMN_WIDTH = 32;
+export const DAY_COLUMN_WIDTH = 32;
+
+export type TimelineSelection = {
+  rowStart: number;
+  rowEnd: number;
+  columnStart: number;
+  columnEnd: number;
+};
 
 type CalendarTimelineProps = {
   title: string;
@@ -16,12 +23,15 @@ type CalendarTimelineProps = {
   density: "regular" | "compact";
   isCompact: boolean;
   onToggleCompact: () => void;
+  selection: TimelineSelection | null;
   days: Date[];
   months: MonthGroup[];
   events: Array<CalendarEvent & { startIndex: number; endIndex: number }>;
   tone: "main" | "hidden";
   canResizeEvents: boolean;
   resizingEventId: string | null;
+  selectionScope: "main" | "hidden";
+  onSelectionPointerDown: (rowIndex: number, columnIndex: number, pointerId: number) => void;
   onEventResizeStart: (input: {
     clientX: number;
     dayWidth: number;
@@ -58,6 +68,20 @@ function monthTint(index: number): CSSProperties {
   };
 }
 
+function isCellSelected(
+  selection: TimelineSelection | null,
+  rowIndex: number,
+  columnIndex: number,
+) {
+  return Boolean(
+    selection &&
+      rowIndex >= selection.rowStart &&
+      rowIndex <= selection.rowEnd &&
+      columnIndex >= selection.columnStart &&
+      columnIndex <= selection.columnEnd,
+  );
+}
+
 export function CalendarTimeline({
   title,
   subtitle,
@@ -66,12 +90,15 @@ export function CalendarTimeline({
   density,
   isCompact,
   onToggleCompact,
+  selection,
   days,
   months,
   events,
   tone,
   canResizeEvents,
   resizingEventId,
+  selectionScope,
+  onSelectionPointerDown,
   onEventResizeStart,
   onEventAction,
 }: CalendarTimelineProps) {
@@ -128,10 +155,22 @@ export function CalendarTimeline({
           ))}
 
           <div className={styles.cornerSub}>Range</div>
-          {days.map((day) => (
+          {days.map((day, columnIndex) => (
             <div
-              className={`${styles.dayHeader} ${isToday(day) ? styles.dayHeaderToday : ""}`}
+              className={`${styles.dayHeader} ${isToday(day) ? styles.dayHeaderToday : ""} ${isCellSelected(selection, 0, columnIndex) ? styles.selectionCell : ""}`}
               key={day.toISOString()}
+              data-selection-kind="day-header"
+              data-selection-scope={selectionScope}
+              data-selection-row-index={0}
+              data-selection-column-index={columnIndex}
+              onPointerDown={(event) => {
+                if (event.button !== 0) {
+                  return;
+                }
+
+                event.preventDefault();
+                onSelectionPointerDown(0, columnIndex, event.pointerId);
+              }}
             >
               <span className={styles.dayNumber}>{day.getDate()}</span>
               <span className={styles.dayLabel}>
@@ -146,8 +185,9 @@ export function CalendarTimeline({
             </div>
           ) : null}
 
-          {events.map((event) => {
+          {events.map((event, eventRowIndex) => {
             const showBarLabel = density === "regular" && event.endIndex > event.startIndex;
+            const selectionRowIndex = eventRowIndex + 1;
 
             return (
               <Fragment key={event.id}>
@@ -178,6 +218,43 @@ export function CalendarTimeline({
                 <div
                   className={`${styles.eventTrack} ${showBarLabel ? "" : styles.eventTrackSingleDay}`}
                   data-event-track="true"
+                  data-selection-kind="event-track"
+                  data-selection-scope={selectionScope}
+                  data-selection-row-index={selectionRowIndex}
+                  data-selection-column-count={days.length}
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) {
+                      return;
+                    }
+
+                    if (
+                      event.target instanceof HTMLElement &&
+                      event.target.closest("button, a")
+                    ) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    const trackCell = document
+                      .elementsFromPoint(event.clientX, event.clientY)
+                      .find(
+                        (element) =>
+                          element instanceof HTMLElement &&
+                          element.closest("[data-selection-kind='track-cell']"),
+                      );
+                    const selectedTrackCell =
+                      trackCell instanceof HTMLElement
+                        ? trackCell.closest<HTMLElement>("[data-selection-kind='track-cell']")
+                        : null;
+                    const columnIndex = selectedTrackCell
+                      ? Number(selectedTrackCell.dataset.selectionColumnIndex)
+                      : 0;
+                    onSelectionPointerDown(
+                      selectionRowIndex,
+                      columnIndex,
+                      event.pointerId,
+                    );
+                  }}
                   style={{
                     gridColumn: "2 / -1",
                     gridTemplateColumns: `repeat(${days.length}, ${DAY_COLUMN_WIDTH}px)`,
@@ -193,10 +270,14 @@ export function CalendarTimeline({
                       />
                     ) : null,
                   )}
-                  {days.map((day) => (
+                  {days.map((day, columnIndex) => (
                     <div
-                      className={`${styles.trackCell} ${isToday(day) ? styles.trackCellToday : ""}`}
+                      className={`${styles.trackCell} ${isToday(day) ? styles.trackCellToday : ""} ${isCellSelected(selection, selectionRowIndex, columnIndex) ? styles.selectionCell : ""}`}
                       key={day.toISOString()}
+                      data-selection-kind="track-cell"
+                      data-selection-scope={selectionScope}
+                      data-selection-row-index={selectionRowIndex}
+                      data-selection-column-index={columnIndex}
                       aria-hidden="true"
                     />
                   ))}
